@@ -904,6 +904,14 @@ function abrirModalMiniBaner(garantiaId, enCadena) {
         <div class="modal-body" style="max-height: 60vh; overflow-y: auto">
           <div class="mb-grupo">
             <div class="mb-grupo-tit">📍 Ubicación validada</div>
+            <div class="field">
+              <label>Calle / Avenida principal *</label>
+              <input type="text" id="mb-calle" value="${escapeHtml(g.calle || '')}" placeholder="Av. Reforma">
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Núm. EXTERIOR *</label><input type="text" id="mb-num-ext" value="${escapeHtml(g.num_exterior || '')}" placeholder="2007"></div>
+              <div class="field"><label>Núm. INTERIOR (si aplica)</label><input type="text" id="mb-num-int" value="${escapeHtml(g.num_interior || '')}" placeholder="B-13"></div>
+            </div>
             <div class="field-row">
               <div class="field"><label>Entre calles *</label><input type="text" id="mb-entre-calles" value="${escapeHtml(g.entre_calles || '')}" placeholder="Av. López Mateos y Vallarta"></div>
               <div class="field"><label>Código postal *</label><input type="text" id="mb-cp" maxlength="5" value="${escapeHtml(g.codigo_postal || '')}" placeholder="44100"></div>
@@ -1137,6 +1145,9 @@ async function onSubirAvaluoPdfMB(input) {
 async function guardarMiniBaner(opcion) {
   if (!_mbActualId) return;
   const entre_calles = document.getElementById('mb-entre-calles').value.trim();
+   const calle = document.getElementById('mb-calle').value.trim();
+  const num_exterior = document.getElementById('mb-num-ext').value.trim();
+  const num_interior = document.getElementById('mb-num-int').value.trim();
   const codigo_postal = document.getElementById('mb-cp').value.trim();
   const tipo_inmueble = document.getElementById('mb-tipo-inmueble').value;
   const avaluo_valor = parseFloat(document.getElementById('mb-avaluo-valor').value) || null;
@@ -1152,6 +1163,9 @@ async function guardarMiniBaner(opcion) {
     estudio_mercado_high: estudio_mercado_high,
     estudio_mercado_notas: estudio_mercado_notas,
     entre_calles: entre_calles || null,
+     calle: calle || null,
+    num_exterior: num_exterior || null,
+    num_interior: num_interior || null,
     codigo_postal: codigo_postal || null,
     tipo_inmueble: tipo_inmueble || null,
     google_maps_link: _mbMapsLink || null,
