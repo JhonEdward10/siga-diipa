@@ -1,9 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
-   SIGA · siga-carteras.js · DIIPA · Fase 3.3 COMPLETA
+   SIGA · siga-carteras.js · DIIPA · Fase 3.3 COMPLETA + 3.3-E
    MÓDULO: Carteras y Garantías
    - Tab 1 · Gestión de Carteras + Agregar Garantía + Carga masiva
-   - Tab 2 · Vista por Garantías y Propiedades (con línea de vida)
+   - Tab 2 · Vista por Garantías + línea de vida + validación pre-dictamen
    - Tab 3 · Papelera y duplicados
+   NUEVO 3.3-E:
+   - Mini báner de pre-revisión (foto, avalúo, estudio mercado)
+   - Subida real a Supabase Storage (buckets garantias-fotos + garantias-avaluos)
+   - Validación del botón "Mandar a Pre-dictaminar URRJ"
 ═══════════════════════════════════════════════════════════════ */
 
 /* ─── INYECTAR ESTILOS ADICIONALES ─── */
@@ -58,6 +62,51 @@
     .pap-dup-card .btn-mini { margin-right: 4px; }
 
     .acreedor-detalle { background: var(--bg-tint); border-radius: 7px; padding: 8px 12px; margin-bottom: 5px; font-size: 12px; }
+
+    /* ═══ MINI BÁNER DE PRE-REVISIÓN (Fase 3.3-E) ═══ */
+    .mini-baner { background: linear-gradient(135deg, #FEF7E6 0%, #FEF3C7 100%); border: 1.5px solid #F59E0B; border-radius: 10px; padding: 14px; margin: 14px 0; }
+    .mini-baner-titulo { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .mini-baner-sub { font-size: 10.5px; color: #92400e; opacity: 0.85; margin-bottom: 12px; line-height: 1.45; }
+    .mini-baner-grupo { background: var(--bg-card); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    .mini-baner-grupo-tit { font-size: 11px; font-weight: 600; color: var(--diipa-azul); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .mini-baner-grupo:last-child { margin-bottom: 0; }
+
+    .input-archivo { background: var(--bg-tint); border: 1px dashed var(--border); border-radius: 7px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+    .input-archivo:hover { background: var(--diipa-azul-bg); border-color: var(--diipa-azul-claro); }
+    .input-archivo input[type="file"] { display: none; }
+    .input-archivo-ico { font-size: 24px; }
+    .input-archivo-label { font-size: 11px; color: var(--text-secondary); font-weight: 500; text-align: center; }
+    .input-archivo.con-archivo { background: #DCFCE7; border-color: #86EFAC; border-style: solid; }
+    .input-archivo.con-archivo .input-archivo-label { color: #166534; font-weight: 600; }
+    .input-archivo.obligatorio { border-color: #F59E0B; }
+    .input-archivo.obligatorio.con-archivo { border-color: #86EFAC; }
+
+    .foto-preview { width: 100%; max-height: 140px; object-fit: cover; border-radius: 6px; margin-top: 6px; }
+    .galeria-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin-top: 8px; }
+    .galeria-thumb { position: relative; width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: var(--bg-tint); }
+    .galeria-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .galeria-thumb-quitar { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.6); color: white; border: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+
+    .estudio-rango { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .checklist-validacion { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+    .checklist-validacion h5 { font-size: 11.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
+    .checklist-item { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 3px 0; }
+    .checklist-item.ok { color: #166534; }
+    .checklist-item.falta { color: #b91c1c; }
+    .checklist-ico { width: 14px; text-align: center; }
+
+    .modal-validacion { background: #FEE2E2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
+    .modal-validacion h5 { font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px; }
+    .modal-validacion ul { margin-left: 18px; font-size: 11.5px; color: #7f1d1d; }
+    .modal-validacion li { margin: 2px 0; }
+
+    .btn-card:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-card.con-tooltip { position: relative; }
+    .btn-card.con-tooltip:disabled:hover::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #b91c1c; color: white; padding: 7px 12px; border-radius: 6px; font-size: 10.5px; white-space: nowrap; max-width: 280px; white-space: normal; width: 240px; line-height: 1.4; z-index: 100; }
+
+    .upload-progress { width: 100%; height: 4px; background: var(--bg-tint); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+    .upload-progress-bar { height: 100%; background: var(--diipa-teal); width: 0%; transition: width 0.3s; }
   `;
   const style = document.createElement('style');
   style.id = 'siga-carteras-styles';
@@ -107,6 +156,14 @@ const TIPOS_ORIGEN = [
   { id: 'EXT', label: 'Externa (compra de derechos)' }
 ];
 
+const TIPOS_INMUEBLE = [
+  { id: 'casa',    label: '🏠 Casa habitación' },
+  { id: 'depto',   label: '🏢 Departamento' },
+  { id: 'terreno', label: '🟫 Terreno' },
+  { id: 'local',   label: '🏪 Local comercial' },
+  { id: 'bodega',  label: '🏭 Bodega / nave' }
+];
+
 const ACREEDORES_SUGERIDOS = [
   'BBVA','Santander','Banamex','Banorte','HSBC','Scotiabank','BanBajío',
   'Banco Azteca','Banco Mercantil del Norte','Inbursa',
@@ -127,6 +184,10 @@ let _filasDuplicadas = [];
 let _filasError = [];
 let _filtroV = { busqueda: '', cartera: '', estatus: '', admin: '', posicion: '' };
 let _seleccionados = new Set();
+
+let _fotoFachadaUrl = null;
+let _galeriaFotosUrls = [];
+let _avaluoPdfUrl = null;
 
 function detectarPosicionProcesal(tipoCaso) {
   if (!tipoCaso) return 'OTROS';
@@ -170,9 +231,7 @@ function cambiarTabCyG(tab) {
   document.getElementById('cyg-view-papelera').style.display = tab === 'papelera' ? 'block' : 'none';
   if (tab === 'principal') {
     renderCarterasGrid();
-    poblarSelectCarteras();
-    poblarSelectTiposCaso();
-    poblarDatalistAcreedores();
+    renderFormGarantiaCompleto();
     _acreedoresActuales = [{ nombre: '', monto: '' }];
     renderAcreedores();
   } else if (tab === 'vista') {
@@ -182,12 +241,166 @@ function cambiarTabCyG(tab) {
   }
 }
 
+function renderFormGarantiaCompleto() {
+  const cont = document.querySelector('.cyg-form-individual');
+  if (!cont) return;
+  _fotoFachadaUrl = null;
+  _galeriaFotosUrls = [];
+  _avaluoPdfUrl = null;
+
+  cont.innerHTML = `
+    <h4>➕ Agregar Garantía Individual</h4>
+    <div class="field">
+      <label>📂 Cartera a la que pertenece *</label>
+      <select id="gar-cartera"></select>
+    </div>
+    <div class="field">
+      <label>⚖️ Tipo de Caso *</label>
+      <select id="gar-tipo-caso" onchange="onCambiarTipoCaso()"></select>
+      <div class="posicion-detectada" id="gar-posicion-detectada"></div>
+    </div>
+    <div class="field">
+      <label>💳 Acreedor original (banco / institución)</label>
+      <div id="gar-acreedores-list"></div>
+    </div>
+    <div class="field">
+      <label>📜 No. de Crédito (opcional)</label>
+      <input type="text" id="gar-num-credito">
+    </div>
+
+    <div class="mini-baner">
+      <div class="mini-baner-titulo">⭐ Mini báner de pre-revisión</div>
+      <div class="mini-baner-sub">Datos que Comercial DEBE llenar antes de poder mandar a pre-dictaminar. El equipo URRJ necesita esto para hacer su trabajo bien.</div>
+
+      <div class="mini-baner-grupo">
+        <div class="mini-baner-grupo-tit">📍 Ubicación validada</div>
+        <div class="field">
+          <label>Dirección / Ubicación *</label>
+          <input type="text" id="gar-direccion" placeholder="Calle, Colonia, Ciudad, Estado">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Entre calles *</label>
+            <input type="text" id="gar-entre-calles" placeholder="Ej. Av. López Mateos y Av. Vallarta">
+          </div>
+          <div class="field">
+            <label>Código postal *</label>
+            <input type="text" id="gar-cp" maxlength="5" placeholder="44100">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Estado</label><input type="text" id="gar-estado"></div>
+          <div class="field"><label>Municipio</label><input type="text" id="gar-municipio"></div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Tipo de inmueble *</label>
+            <select id="gar-tipo-inmueble">
+              <option value="">— Seleccionar —</option>
+              ${TIPOS_INMUEBLE.map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field" style="padding-top: 22px">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer">
+              <input type="checkbox" id="gar-direccion-validada" style="width:16px; height:16px">
+              <span>✓ Dirección verificada en Google Maps</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-baner-grupo">
+        <div class="mini-baner-grupo-tit">📸 Foto fachada + galería</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Foto de fachada *</label>
+            <label class="input-archivo obligatorio" id="lbl-foto-fachada">
+              <input type="file" id="gar-foto-fachada" accept="image/jpeg,image/png,image/webp" onchange="onSubirFotoFachada(this)">
+              <div class="input-archivo-ico">📷</div>
+              <div class="input-archivo-label">Click para subir foto principal</div>
+            </label>
+            <div id="preview-foto-fachada"></div>
+          </div>
+          <div class="field">
+            <label>Galería opcional</label>
+            <label class="input-archivo" id="lbl-galeria">
+              <input type="file" id="gar-galeria" accept="image/jpeg,image/png,image/webp" multiple onchange="onSubirGaleria(this)">
+              <div class="input-archivo-ico">🖼️</div>
+              <div class="input-archivo-label">Varias fotos (interior, calle, etc.)</div>
+            </label>
+            <div class="galeria-grid" id="preview-galeria"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-baner-grupo">
+        <div class="mini-baner-grupo-tit">💰 Avalúo comercial</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Valor del avalúo (MXN) *</label>
+            <input type="number" id="gar-avaluo-valor" step="0.01" placeholder="1500000">
+          </div>
+          <div class="field">
+            <label>PDF del avalúo (opcional)</label>
+            <label class="input-archivo" id="lbl-avaluo-pdf">
+              <input type="file" id="gar-avaluo-pdf" accept="application/pdf" onchange="onSubirAvaluoPdf(this)">
+              <div class="input-archivo-ico">📄</div>
+              <div class="input-archivo-label">Click para subir PDF</div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-baner-grupo">
+        <div class="mini-baner-grupo-tit">📊 Estudio de mercado rápido</div>
+        <div style="font-size:10.5px; color:var(--text-tertiary); margin-bottom:8px">Cuánto valen casas comparables en la zona según calles, vecindario, etc.</div>
+        <div class="estudio-rango">
+          <div class="field">
+            <label>Valor BAJO de la zona *</label>
+            <input type="number" id="gar-mercado-low" step="0.01" placeholder="1200000">
+          </div>
+          <div class="field">
+            <label>Valor ALTO de la zona *</label>
+            <input type="number" id="gar-mercado-high" step="0.01" placeholder="1800000">
+          </div>
+        </div>
+        <div class="field">
+          <label>Notas del análisis (opcional)</label>
+          <textarea id="gar-mercado-notas" rows="2" placeholder="Comparé 3 casas similares en la cuadra..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>💰 Valor estimado interno ($)</label>
+        <input type="number" step="0.01" id="gar-valor" placeholder="Promedio que usaremos">
+      </div>
+      <div class="field">
+        <label>🎯 Precio piso ($) <span style="font-size:9px; color:#92400e">(confidencial · Dirección)</span></label>
+        <input type="number" step="0.01" id="gar-precio-piso">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>📐 M² Terreno</label><input type="number" step="0.01" id="gar-m2-terreno"></div>
+      <div class="field"><label>🏠 M² Construcción</label><input type="number" step="0.01" id="gar-m2-construccion"></div>
+    </div>
+    
+    <button class="btn-card primary" id="btnGuardarGarantia" onclick="guardarGarantiaIndividual()" style="width:100%; margin-top:12px">+ Agregar Garantía</button>
+  `;
+
+  poblarSelectCarteras();
+  poblarSelectTiposCaso();
+  poblarDatalistAcreedores();
+  renderAcreedores();
+}
+
 function renderCarterasGrid() {
   const cont = document.getElementById('cyg-carteras-grid');
   if (!cont) return;
   const carterasActivas = _carteras.filter(c => !c.archivada);
   if (!carterasActivas.length) {
-    cont.innerHTML = `<div class="empty-state-mini"><div class="icon-mini">📂</div><p>Aún no hay carteras. Crea la primera para empezar a registrar garantías.</p></div>`;
+    cont.innerHTML = `<div class="empty-state-mini"><div class="icon-mini">📂</div><p>Aún no hay carteras.</p></div>`;
     return;
   }
   cont.innerHTML = carterasActivas.map(c => {
@@ -232,7 +445,7 @@ function onCambiarTipoCaso() {
   const box = document.getElementById('gar-posicion-detectada');
   if (!box) return;
   if (!tipoCaso) { box.style.display = 'none'; box.innerHTML = ''; return; }
-  const aviso = conf.activo ? '' : '<div style="font-size:10.5px;color:#92400e;margin-top:4px">⚠️ Módulo en construcción · cuando se libere, esta garantía se migrará automáticamente.</div>';
+  const aviso = conf.activo ? '' : '<div style="font-size:10.5px;color:#92400e;margin-top:4px">⚠️ Módulo en construcción.</div>';
   box.style.display = 'block';
   box.style.borderLeft = '3px solid ' + conf.color;
   box.innerHTML = `<div class="posicion-detectada-titulo">🤖 Posición procesal auto-detectada:</div><div class="posicion-detectada-valor" style="color:${conf.color}"><strong>${conf.label}</strong> · ${escapeHtml(conf.sub)}</div>${aviso}`;
@@ -265,6 +478,103 @@ function quitarAcreedor(idx) {
   _acreedoresActuales.splice(idx, 1);
   if (!_acreedoresActuales.length) _acreedoresActuales = [{ nombre: '', monto: '' }];
   renderAcreedores();
+}
+
+async function onSubirFotoFachada(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const lbl = document.getElementById('lbl-foto-fachada');
+  lbl.classList.remove('con-archivo');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = 'Subiendo...';
+  try {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `fachada/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const { data, error } = await sb.storage.from('garantias-fotos').upload(path, file);
+    if (error) throw error;
+    const { data: urlData } = sb.storage.from('garantias-fotos').getPublicUrl(path);
+    _fotoFachadaUrl = urlData.publicUrl;
+    document.getElementById('preview-foto-fachada').innerHTML = `<img src="${_fotoFachadaUrl}" class="foto-preview">`;
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = '✓ Foto subida · click para reemplazar';
+    mostrarToast('success', '✓ Foto fachada subida');
+  } catch (err) {
+    console.error(err);
+    mostrarToast('error', 'Error al subir foto: ' + (err.message || ''));
+    labelDiv.textContent = 'Click para subir foto principal';
+  }
+}
+
+async function onSubirGaleria(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  const lbl = document.getElementById('lbl-galeria');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = `Subiendo ${files.length}...`;
+  try {
+    for (const file of files) {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `galeria/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const { error } = await sb.storage.from('garantias-fotos').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = sb.storage.from('garantias-fotos').getPublicUrl(path);
+      _galeriaFotosUrls.push(urlData.publicUrl);
+    }
+    renderPreviewGaleria();
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = `✓ ${_galeriaFotosUrls.length} fotos · click para agregar más`;
+    mostrarToast('success', `✓ ${files.length} fotos subidas`);
+    input.value = '';
+  } catch (err) {
+    console.error(err);
+    mostrarToast('error', 'Error al subir galería: ' + (err.message || ''));
+    labelDiv.textContent = 'Varias fotos (interior, calle, etc.)';
+  }
+}
+
+function renderPreviewGaleria() {
+  const cont = document.getElementById('preview-galeria');
+  if (!cont) return;
+  cont.innerHTML = _galeriaFotosUrls.map((url, idx) => `
+    <div class="galeria-thumb">
+      <img src="${url}">
+      <button class="galeria-thumb-quitar" onclick="quitarFotoGaleria(${idx})">✕</button>
+    </div>
+  `).join('');
+}
+
+function quitarFotoGaleria(idx) {
+  _galeriaFotosUrls.splice(idx, 1);
+  renderPreviewGaleria();
+  const lbl = document.getElementById('lbl-galeria');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  if (_galeriaFotosUrls.length === 0) {
+    lbl.classList.remove('con-archivo');
+    labelDiv.textContent = 'Varias fotos (interior, calle, etc.)';
+  } else {
+    labelDiv.innerHTML = `✓ ${_galeriaFotosUrls.length} fotos · click para agregar más`;
+  }
+}
+
+async function onSubirAvaluoPdf(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const lbl = document.getElementById('lbl-avaluo-pdf');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = 'Subiendo PDF...';
+  try {
+    const path = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.pdf`;
+    const { error } = await sb.storage.from('garantias-avaluos').upload(path, file);
+    if (error) throw error;
+    _avaluoPdfUrl = path;
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = '✓ Avalúo PDF subido';
+    mostrarToast('success', '✓ Avalúo subido');
+  } catch (err) {
+    console.error(err);
+    mostrarToast('error', 'Error al subir avalúo: ' + (err.message || ''));
+    labelDiv.textContent = 'Click para subir PDF';
+  }
 }
 
 async function abrirModalCartera(id) {
@@ -377,6 +687,17 @@ async function guardarGarantiaIndividual() {
     precio_piso: parseFloat(document.getElementById('gar-precio-piso').value) || null,
     m2_terreno: parseFloat(document.getElementById('gar-m2-terreno').value) || null,
     m2_construccion: parseFloat(document.getElementById('gar-m2-construccion').value) || null,
+    foto_fachada: _fotoFachadaUrl,
+    galeria_fotos: _galeriaFotosUrls,
+    avaluo_valor: parseFloat(document.getElementById('gar-avaluo-valor').value) || null,
+    avaluo_pdf: _avaluoPdfUrl,
+    estudio_mercado_low: parseFloat(document.getElementById('gar-mercado-low').value) || null,
+    estudio_mercado_high: parseFloat(document.getElementById('gar-mercado-high').value) || null,
+    estudio_mercado_notas: document.getElementById('gar-mercado-notas').value.trim() || null,
+    entre_calles: document.getElementById('gar-entre-calles').value.trim() || null,
+    codigo_postal: document.getElementById('gar-cp').value.trim() || null,
+    tipo_inmueble: document.getElementById('gar-tipo-inmueble').value || null,
+    direccion_validada: document.getElementById('gar-direccion-validada').checked,
     estatus: 'registrada', creado_por: _userEmail, creado_en: new Date().toISOString()
   };
   const btn = document.getElementById('btnGuardarGarantia');
@@ -385,26 +706,11 @@ async function guardarGarantiaIndividual() {
     const { error } = await sb.from('garantias').insert(payload);
     if (error) { console.error(error); mostrarToast('error', 'Error: ' + error.message); return; }
     mostrarToast('success', '✓ Garantía ' + folio + ' agregada · Posición: ' + posicion);
-    limpiarFormGarantia();
     await cargarGarantiasTodas();
     renderCarterasGrid();
+    renderFormGarantiaCompleto();
   } catch (err) { console.error(err); mostrarToast('error', 'Error inesperado'); }
   finally { btn.disabled = false; btn.textContent = '+ Agregar Garantía'; }
-}
-
-function limpiarFormGarantia() {
-  document.getElementById('gar-num-credito').value = '';
-  document.getElementById('gar-direccion').value = '';
-  document.getElementById('gar-estado').value = '';
-  document.getElementById('gar-municipio').value = '';
-  document.getElementById('gar-valor').value = '';
-  document.getElementById('gar-precio-piso').value = '';
-  document.getElementById('gar-m2-terreno').value = '';
-  document.getElementById('gar-m2-construccion').value = '';
-  document.getElementById('gar-tipo-caso').value = '';
-  document.getElementById('gar-posicion-detectada').style.display = 'none';
-  _acreedoresActuales = [{ nombre: '', monto: '' }];
-  renderAcreedores();
 }
 
 async function generarFolioGarantia() {
@@ -419,6 +725,18 @@ async function generarFolioGarantia() {
 function normalizarDireccion(dir) {
   if (!dir) return '';
   return String(dir).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function validarParaPredictamen(garantia) {
+  const faltantes = [];
+  if (!garantia.foto_fachada) faltantes.push('foto de fachada');
+  if (!garantia.avaluo_valor) faltantes.push('valor del avalúo');
+  if (!garantia.estudio_mercado_low || !garantia.estudio_mercado_high) faltantes.push('estudio de mercado (rango bajo/alto)');
+  if (!garantia.entre_calles) faltantes.push('entre calles');
+  if (!garantia.codigo_postal) faltantes.push('código postal');
+  if (!garantia.tipo_inmueble) faltantes.push('tipo de inmueble');
+  if (!garantia.direccion_validada) faltantes.push('marcar dirección validada en Google Maps');
+  return { valido: faltantes.length === 0, faltantes };
 }
 
 function procesarArchivoMasivo(file) {
@@ -514,7 +832,6 @@ function cancelarCargaMasiva() {
   if (fileInput) fileInput.value = '';
 }
 
-/* TAB 2 · VISTA POR GARANTÍAS Y PROPIEDADES */
 function renderVistaGarantias() {
   const cont = document.getElementById('cyg-view-vista');
   if (!cont) return;
@@ -538,7 +855,7 @@ function renderVistaGarantias() {
           <div class="cyg-section-ico">🏷️</div>
           <div style="flex:1">
             <h3 id="tabla-garantias-titulo">Garantías Registradas (0)</h3>
-            <p>Filtros que se llenan según los datos reales</p>
+            <p>Solo las garantías con mini báner completo pueden mandarse a pre-dictamen</p>
           </div>
         </div>
         <div class="filtros-vista">
@@ -566,7 +883,7 @@ function renderVistaGarantias() {
         <span id="seleccionados-count">0 garantías seleccionadas</span>
         <div style="flex:1"></div>
         <button class="btn-card secondary" onclick="seleccionarTodas()">☑️ Seleccionar todo</button>
-        <button class="btn-card primary" onclick="mandarAPredictamen()" style="background:linear-gradient(135deg,#534AB7,#6B5FD0)">⚖️ Mandar a Pre-dictaminar URRJ</button>
+        <button class="btn-card primary con-tooltip" id="btn-mandar-pre" onclick="mandarAPredictamen()" style="background:linear-gradient(135deg,#534AB7,#6B5FD0)">⚖️ Mandar a Pre-dictaminar URRJ</button>
       </div>
     </div>
   `;
@@ -652,10 +969,14 @@ function construirFilaGarantia(g) {
   const posicion = POSICIONES_PROCESALES[g.posicion_procesal] || POSICIONES_PROCESALES.OTROS;
   const valor = g.valor_estimado ? '$' + Number(g.valor_estimado).toLocaleString('es-MX', { maximumFractionDigits: 0 }) : '—';
   const isChecked = _seleccionados.has(g.id);
+  const val = validarParaPredictamen(g);
+  const estadoBaner = val.valido ? '<span class="meta-chip" style="background:#DCFCE7;color:#166534">✓ Listo para pre-dictamen</span>' : `<span class="meta-chip" style="background:#FEF3C7;color:#92400e">⚠️ Faltan ${val.faltantes.length} dato${val.faltantes.length !== 1 ? 's' : ''}</span>`;
+  const thumbFoto = g.foto_fachada ? `<img src="${g.foto_fachada}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; flex-shrink:0">` : '';
   return `
     <div class="fila-garantia ${isChecked ? 'seleccionada' : ''}">
       <div class="fila-gar-top">
         <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSeleccion(${g.id})">
+        ${thumbFoto}
         <div class="fila-gar-info">
           <div class="fila-gar-folio">${escapeHtml(g.folio || '')}</div>
           <div class="fila-gar-direccion">${escapeHtml(g.direccion || '')}</div>
@@ -664,6 +985,7 @@ function construirFilaGarantia(g) {
             <span class="meta-chip">🏦 ${admin ? escapeHtml(admin.nombre || '') : 'Sin admin'}</span>
             <span class="meta-chip" style="background:${posicion.color}22;color:${posicion.color}">${posicion.label}</span>
             <span class="meta-chip">💰 ${valor}</span>
+            ${estadoBaner}
           </div>
         </div>
         <div class="fila-gar-acciones">
@@ -729,10 +1051,46 @@ function seleccionarTodas() {
 function actualizarContadorSeleccion() {
   const lbl = document.getElementById('seleccionados-count');
   if (lbl) lbl.textContent = `${_seleccionados.size} garantía${_seleccionados.size !== 1 ? 's' : ''} seleccionada${_seleccionados.size !== 1 ? 's' : ''}`;
+  const btn = document.getElementById('btn-mandar-pre');
+  if (!btn) return;
+  if (_seleccionados.size === 0) {
+    btn.disabled = true;
+    btn.setAttribute('data-tooltip', 'Selecciona al menos una garantía');
+    return;
+  }
+  const noValidas = [];
+  _seleccionados.forEach(id => {
+    const g = _garantias.find(x => x.id === id);
+    if (g) {
+      const v = validarParaPredictamen(g);
+      if (!v.valido) noValidas.push({ folio: g.folio, faltantes: v.faltantes });
+    }
+  });
+  if (noValidas.length) {
+    btn.disabled = true;
+    btn.setAttribute('data-tooltip', `${noValidas.length} garantía${noValidas.length !== 1 ? 's' : ''} sin mini báner completo. Click en cada una para ver qué falta.`);
+  } else {
+    btn.disabled = false;
+    btn.removeAttribute('data-tooltip');
+  }
 }
 
 async function mandarAPredictamen() {
   if (!_seleccionados.size) { mostrarToast('error', 'Selecciona al menos una garantía'); return; }
+  const noValidas = [];
+  _seleccionados.forEach(id => {
+    const g = _garantias.find(x => x.id === id);
+    if (g) {
+      const v = validarParaPredictamen(g);
+      if (!v.valido) noValidas.push({ folio: g.folio, faltantes: v.faltantes });
+    }
+  });
+  if (noValidas.length) {
+    const detalle = noValidas.map(n => `${n.folio}: ${n.faltantes.join(', ')}`).join('\n');
+    mostrarToast('error', `⚠️ ${noValidas.length} garantía(s) sin mini báner completo`);
+    alert('NO se puede mandar a pre-dictamen.\n\nFaltantes:\n\n' + detalle);
+    return;
+  }
   if (!confirm(`¿Mandar ${_seleccionados.size} garantía(s) a Pre-dictaminar URRJ?\n\nEsto cambia su estatus a "En pre-dictamen". Después un abogado URRJ revisará cada caso.`)) return;
   try {
     const ids = Array.from(_seleccionados);
@@ -751,9 +1109,26 @@ function abrirDetalleGarantia(id) {
   const cartera = _carteras.find(c => c.id === g.cartera_id);
   const admin = cartera && cartera.admin_id ? _admins.find(a => a.id === cartera.admin_id) : null;
   const posicion = POSICIONES_PROCESALES[g.posicion_procesal] || POSICIONES_PROCESALES.OTROS;
+  const tipoInmuebleLabel = (TIPOS_INMUEBLE.find(t => t.id === g.tipo_inmueble) || {}).label || g.tipo_inmueble || '—';
   const acreedoresHtml = (g.acreedores && g.acreedores.length) ? g.acreedores.map(a => 
     `<div class="acreedor-detalle">💳 <strong>${escapeHtml(a.nombre || '')}</strong>${a.monto ? ' · $' + Number(a.monto).toLocaleString('es-MX') : ''}</div>`
   ).join('') : '<div style="color:var(--text-tertiary)">Sin acreedores registrados</div>';
+  const val = validarParaPredictamen(g);
+  const checklistHtml = `
+    <div class="checklist-validacion">
+      <h5>${val.valido ? '✅ Mini báner completo · lista para pre-dictamen' : '⚠️ Mini báner incompleto · NO se puede mandar a pre-dictamen'}</h5>
+      <div class="checklist-item ${g.foto_fachada ? 'ok' : 'falta'}"><span class="checklist-ico">${g.foto_fachada ? '✓' : '✕'}</span> Foto de fachada</div>
+      <div class="checklist-item ${g.avaluo_valor ? 'ok' : 'falta'}"><span class="checklist-ico">${g.avaluo_valor ? '✓' : '✕'}</span> Valor del avalúo</div>
+      <div class="checklist-item ${(g.estudio_mercado_low && g.estudio_mercado_high) ? 'ok' : 'falta'}"><span class="checklist-ico">${(g.estudio_mercado_low && g.estudio_mercado_high) ? '✓' : '✕'}</span> Estudio de mercado (rango)</div>
+      <div class="checklist-item ${g.entre_calles ? 'ok' : 'falta'}"><span class="checklist-ico">${g.entre_calles ? '✓' : '✕'}</span> Entre calles</div>
+      <div class="checklist-item ${g.codigo_postal ? 'ok' : 'falta'}"><span class="checklist-ico">${g.codigo_postal ? '✓' : '✕'}</span> Código postal</div>
+      <div class="checklist-item ${g.tipo_inmueble ? 'ok' : 'falta'}"><span class="checklist-ico">${g.tipo_inmueble ? '✓' : '✕'}</span> Tipo de inmueble</div>
+      <div class="checklist-item ${g.direccion_validada ? 'ok' : 'falta'}"><span class="checklist-ico">${g.direccion_validada ? '✓' : '✕'}</span> Dirección validada en Maps</div>
+    </div>
+  `;
+  const galeriaHtml = (g.galeria_fotos && g.galeria_fotos.length) ? 
+    `<div class="galeria-grid">${g.galeria_fotos.map(url => `<div class="galeria-thumb"><img src="${url}"></div>`).join('')}</div>` :
+    '<div style="color:var(--text-tertiary); font-size:11px">Sin galería</div>';
 
   const html = `
     <div class="modal-overlay show" id="modalDetalleGar" onclick="if(event.target===this)cerrarDetalle()">
@@ -766,12 +1141,12 @@ function abrirDetalleGarantia(id) {
           <button class="modal-hdr-x" onclick="cerrarDetalle()">✕</button>
         </div>
         <div class="modal-body">
+          ${g.foto_fachada ? `<img src="${g.foto_fachada}" style="width:100%; max-height:280px; object-fit:cover; border-radius:8px; margin-bottom:10px">` : ''}
+          ${checklistHtml}
           <div class="modal-section-title">🤖 Posición procesal</div>
           <div style="background:${posicion.color}11; border-left:3px solid ${posicion.color}; padding:10px 14px; border-radius:8px"><strong style="color:${posicion.color}">${posicion.label}</strong> · ${escapeHtml(posicion.sub)}</div>
-
           <div class="modal-section-title">📋 Línea de vida</div>
           ${construirLineaVida(g)}
-
           <div class="modal-section-title">📂 Información general</div>
           <div class="field-row">
             <div class="field"><label>Cartera</label><div>${cartera ? escapeHtml(cartera.folio + ' · ' + cartera.nombre) : '—'}</div></div>
@@ -779,29 +1154,38 @@ function abrirDetalleGarantia(id) {
           </div>
           <div class="field-row">
             <div class="field"><label>Tipo de caso</label><div>${escapeHtml(g.tipo_caso || '—')}</div></div>
-            <div class="field"><label>No. de crédito</label><div>${escapeHtml(g.num_credito || '—')}</div></div>
+            <div class="field"><label>Tipo de inmueble</label><div>${escapeHtml(tipoInmuebleLabel)}</div></div>
           </div>
-
           <div class="modal-section-title">💳 Acreedor(es) original(es)</div>
           ${acreedoresHtml}
-
           <div class="modal-section-title">📍 Ubicación</div>
           <div class="field"><label>Dirección</label><div>${escapeHtml(g.direccion || '—')}</div></div>
+          <div class="field-row">
+            <div class="field"><label>Entre calles</label><div>${escapeHtml(g.entre_calles || '—')}</div></div>
+            <div class="field"><label>Código postal</label><div>${escapeHtml(g.codigo_postal || '—')}</div></div>
+          </div>
           <div class="field-row">
             <div class="field"><label>Estado</label><div>${escapeHtml(g.estado_mx || '—')}</div></div>
             <div class="field"><label>Municipio</label><div>${escapeHtml(g.municipio || '—')}</div></div>
           </div>
-
-          <div class="modal-section-title">💰 Valores y medidas</div>
+          <div class="modal-section-title">📸 Galería</div>
+          ${galeriaHtml}
+          <div class="modal-section-title">💰 Valores</div>
           <div class="field-row">
-            <div class="field"><label>Valor estimado</label><div>${g.valor_estimado ? '$' + Number(g.valor_estimado).toLocaleString('es-MX') : '—'}</div></div>
-            <div class="field"><label>Precio piso</label><div>${g.precio_piso ? '$' + Number(g.precio_piso).toLocaleString('es-MX') : '—'}</div></div>
+            <div class="field"><label>Avalúo (valor)</label><div>${g.avaluo_valor ? '$' + Number(g.avaluo_valor).toLocaleString('es-MX') : '—'}</div></div>
+            <div class="field"><label>Valor estimado interno</label><div>${g.valor_estimado ? '$' + Number(g.valor_estimado).toLocaleString('es-MX') : '—'}</div></div>
           </div>
+          <div class="field-row">
+            <div class="field"><label>Estudio mercado · BAJO</label><div>${g.estudio_mercado_low ? '$' + Number(g.estudio_mercado_low).toLocaleString('es-MX') : '—'}</div></div>
+            <div class="field"><label>Estudio mercado · ALTO</label><div>${g.estudio_mercado_high ? '$' + Number(g.estudio_mercado_high).toLocaleString('es-MX') : '—'}</div></div>
+          </div>
+          ${g.estudio_mercado_notas ? `<div class="field"><label>Notas del estudio</label><div>${escapeHtml(g.estudio_mercado_notas)}</div></div>` : ''}
+          <div class="field"><label>Precio piso (confidencial)</label><div>${g.precio_piso ? '$' + Number(g.precio_piso).toLocaleString('es-MX') : '—'}</div></div>
+          <div class="modal-section-title">📐 Medidas</div>
           <div class="field-row">
             <div class="field"><label>M² Terreno</label><div>${g.m2_terreno || '—'}</div></div>
             <div class="field"><label>M² Construcción</label><div>${g.m2_construccion || '—'}</div></div>
           </div>
-
           <div class="modal-section-title">⚙️ Cambiar estatus</div>
           <select id="cambiar-estatus-gar" style="width:100%">
             ${ETAPAS_VIDA.map(e => `<option value="${e.id}" ${e.id === g.estatus ? 'selected' : ''}>${e.ico} ${e.label}</option>`).join('')}
@@ -825,6 +1209,17 @@ function cerrarDetalle() {
 
 async function cambiarEstatusGarantia(id) {
   const nuevo = document.getElementById('cambiar-estatus-gar').value;
+  if (nuevo === 'en_pre_dictamen') {
+    const g = _garantias.find(x => x.id === id);
+    if (g) {
+      const v = validarParaPredictamen(g);
+      if (!v.valido) {
+        mostrarToast('error', '⚠️ No se puede · faltan datos del mini báner');
+        alert('No se puede mandar a pre-dictamen.\n\nFaltan:\n• ' + v.faltantes.join('\n• '));
+        return;
+      }
+    }
+  }
   try {
     const { error } = await sb.from('garantias').update({ estatus: nuevo, actualizado_en: new Date().toISOString() }).eq('id', id);
     if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
@@ -859,7 +1254,6 @@ async function eliminarGarantia(id) {
   } catch (err) { console.error(err); }
 }
 
-/* TAB 3 · PAPELERA Y DUPLICADOS */
 function renderPapelera() {
   const cont = document.getElementById('cyg-view-papelera');
   if (!cont) return;
@@ -880,7 +1274,7 @@ function renderPapelera() {
       <div class="pap-subtabs">
         <button class="pap-subtab ${_tabPap === 'archivadas' ? 'active' : ''}" onclick="cambiarTabPap('archivadas')">📦 Archivadas (${archivadas.length})</button>
         <button class="pap-subtab ${_tabPap === 'eliminadas' ? 'active' : ''}" onclick="cambiarTabPap('eliminadas')">🗑️ Eliminadas (${eliminadas.length})</button>
-        <button class="pap-subtab ${_tabPap === 'duplicadas' ? 'active' : ''}" onclick="cambiarTabPap('duplicadas')" title="Posibles duplicados detectados automáticamente">⚠️ Duplicadas (${duplicadas.length})</button>
+        <button class="pap-subtab ${_tabPap === 'duplicadas' ? 'active' : ''}" onclick="cambiarTabPap('duplicadas')">⚠️ Duplicadas (${duplicadas.length})</button>
       </div>
       <div id="pap-contenido"></div>
     </div>
