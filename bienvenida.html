@@ -439,12 +439,11 @@ body {
 const SUPABASE_URL  = 'https://xuaqrzjgkuvfvnttvakr.supabase.co';
 const SUPABASE_KEY  = 'sb_publishable_-2ZZ7pk9pKDoBPXhuLIhEA_ldWsmBri';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function verificarSesion() {
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-
+    const { data: { session }, error } = await sb.auth.getSession();
     if (error || !session) {
       window.location.href = 'login.html';
       return;
@@ -493,7 +492,7 @@ async function cerrarSesion() {
   if (!confirma) return;
 
   try {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     window.location.href = 'login.html';
   } catch (err) {
     alert('No se pudo cerrar sesión. Intenta de nuevo.');
