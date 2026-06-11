@@ -821,3 +821,692 @@ function actualizarContadorSeleccion() {
   if (!btn) return;
   btn.disabled = _seleccionados.size === 0;
 }
+/* ═══════════════════════════════════════════════════════════════
+   FLUJO DE PRE-DICTAMEN MASIVO (con cadena de modales)
+═══════════════════════════════════════════════════════════════ */
+async function iniciarFlujoPredictamen() {
+  if (!_seleccionados.size) { mostrarToast('error', 'Selecciona al menos una garantía'); return; }
+  const completas = [];
+  const incompletas = [];
+  _seleccionados.forEach(id => {
+    const g = _garantias.find(x => x.id === id);
+    if (!g) return;
+    if (g.estatus !== 'registrada') return;
+    const v = validarParaPredictamen(g);
+    if (v.valido) completas.push(g);
+    else incompletas.push(g);
+  });
+  if (!completas.length && !incompletas.length) {
+    mostrarToast('error', 'Las garantías seleccionadas no están en estatus "registrada"');
+    return;
+  }
+  let mensaje = '';
+  if (completas.length) mensaje += `✓ ${completas.length} garantía(s) listas (se mandan directo)\n`;
+  if (incompletas.length) mensaje += `📝 ${incompletas.length} garantía(s) sin datos completos\n   (se abrirá un modal por cada una)\n`;
+  mensaje += `\n¿Continuar?`;
+  if (!confirm(mensaje)) return;
+  if (completas.length) {
+    try {
+      const ids = completas.map(g => g.id);
+      const { error } = await sb.from('garantias').update({ estatus: 'en_pre_dictamen', actualizado_en: new Date().toISOString() }).in('id', ids);
+      if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
+      _completadasEnCadena = completas.length;
+    } catch (err) { mostrarToast('error', 'Error inesperado'); return; }
+  } else {
+    _completadasEnCadena = 0;
+  }
+  if (incompletas.length) {
+    _colaPredictamen = incompletas.map(g => g.id);
+    _accionFinalCola = 'mandar';
+    abrirModalMiniBaner(_colaPredictamen[0], true);
+  } else {
+    mostrarToast('success', `✓ ${_completadasEnCadena} garantía(s) mandadas a pre-dictamen`);
+    _seleccionados.clear();
+    _completadasEnCadena = 0;
+    await cargarGarantiasTodas();
+    renderVistaGarantias();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL MINI BÁNER · llenar datos para pre-dictamen
+═══════════════════════════════════════════════════════════════ */
+function abrirModalMiniBaner(garantiaId, enCadena) {
+  const g = _garantias.find(x => x.id === garantiaId);
+  if (!g) return;
+  _mbActualId = garantiaId;
+  _mbFotoFachada = g.foto_fachada || null;
+  _mbGaleria = Array.isArray(g.galeria_fotos) ? [...g.galeria_fotos] : [];
+  _mbAvaluoPdf = g.avaluo_pdf || null;
+  _mbMapsLink = g.google_maps_link || '';
+  _mbLat = g.lat || null;
+  _mbLng = g.lng || null;
+  const enCadenaInfo = enCadena && _colaPredictamen.length > 1
+    ? `<div class="mb-cola-info">📋 Modal ${_completadasEnCadena + 1} de ${_completadasEnCadena + _colaPredictamen.length} · van en cadena</div>`
+    : '';
+  const html = `
+    <div class="modal-overlay show" id="modalMiniBaner" onclick="if(event.target===this)cerrarModalMiniBaner()">
+      <div class="modal-box" style="max-width: 560px">
+        <div class="modal-hdr">
+          <div>
+            <div class="modal-hdr-title">📝 Llenar Mini Báner para Pre-dictamen</div>
+            <div class="modal-hdr-sub">${escapeHtml(g.folio || '')} · ${escapeHtml(g.direccion || '')}</div>
+          </div>
+          <button class="modal-hdr-x" onclick="cerrarModalMiniBaner()">✕</button>
+        </div>
+        <div class="mb-aviso">
+          <span class="mb-aviso-ico">ℹ️</span>
+          <span class="mb-aviso-txt">Estos datos son obligatorios para que URRJ pueda hacer el pre-dictamen. Sin esto, no se manda.</span>
+        </div>
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto">
+          <div class="mb-grupo">
+            <div class="mb-grupo-tit">📍 Ubicación validada</div>
+            <div class="field">
+              <label>Calle / Avenida principal *</label>
+              <input type="text" id="mb-calle" value="${escapeHtml(g.calle || '')}" placeholder="Av. Reforma">
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Núm. EXTERIOR *</label><input type="text" id="mb-num-ext" value="${escapeHtml(g.num_exterior || '')}" placeholder="2007"></div>
+              <div class="field"><label>Núm. INTERIOR (si aplica)</label><input type="text" id="mb-num-int" value="${escapeHtml(g.num_interior || '')}" placeholder="B-13"></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Entre calles *</label><input type="text" id="mb-entre-calles" value="${escapeHtml(g.entre_calles || '')}" placeholder="Av. López Mateos y Vallarta"></div>
+              <div class="field"><label>Código postal *</label><input type="text" id="mb-cp" maxlength="5" value="${escapeHtml(g.codigo_postal || '')}" placeholder="44100"></div>
+            </div>
+            <div class="field">
+              <label>Tipo de inmueble *</label>
+              <select id="mb-tipo-inmueble">
+                <option value="">— Seleccionar —</option>
+                ${TIPOS_INMUEBLE.map(t => `<option value="${t.id}" ${g.tipo_inmueble === t.id ? 'selected' : ''}>${escapeHtml(t.label)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label>🔗 Link de Google Maps *</label>
+              <input type="text" id="mb-maps-link" value="${escapeHtml(g.google_maps_link || '')}" placeholder="Pega aquí el link COMPLETO de Google Maps" oninput="onCambiarMapsLink(this.value)">
+              <div id="mb-coords-display" style="margin-top:6px;font-size:11px"></div>
+              <div style="font-size:10.5px;color:var(--text-tertiary);margin-top:4px">
+                💡 Abre Google Maps · busca la dirección · click derecho → "Copiar enlace" · pega aquí
+              </div>
+            </div>
+          </div>
+          <div class="mb-grupo">
+            <div class="mb-grupo-tit">📸 Foto fachada + galería</div>
+            <div class="field-row">
+              <div class="field">
+                <label>Foto fachada *</label>
+                <label class="input-archivo obligatorio ${_mbFotoFachada ? 'con-archivo' : ''}" id="lbl-mb-foto">
+                  <input type="file" id="mb-foto-fachada" accept="image/jpeg,image/png,image/webp" onchange="onSubirFotoFachadaMB(this)">
+                  <div class="input-archivo-ico">${_mbFotoFachada ? '✓' : '📷'}</div>
+                  <div class="input-archivo-label">${_mbFotoFachada ? '✓ Foto cargada · click para reemplazar' : 'Click para subir'}</div>
+                </label>
+                <div id="preview-mb-foto">${_mbFotoFachada ? `<img src="${_mbFotoFachada}" class="foto-preview">` : ''}</div>
+              </div>
+              <div class="field">
+                <label>Galería opcional</label>
+                <label class="input-archivo ${_mbGaleria.length ? 'con-archivo' : ''}" id="lbl-mb-galeria">
+                  <input type="file" id="mb-galeria" accept="image/jpeg,image/png,image/webp" multiple onchange="onSubirGaleriaMB(this)">
+                  <div class="input-archivo-ico">🖼️</div>
+                  <div class="input-archivo-label">${_mbGaleria.length ? `✓ ${_mbGaleria.length} fotos · click para agregar` : 'Varias fotos'}</div>
+                </label>
+                <div class="galeria-grid" id="preview-mb-galeria"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mb-grupo">
+            <div class="mb-grupo-tit">💰 Avalúo comercial</div>
+            <div class="field-row">
+              <div class="field">
+                <label>Valor avalúo (MXN) *</label>
+                <input type="number" id="mb-avaluo-valor" step="0.01" value="${g.avaluo_valor || ''}" placeholder="1500000">
+              </div>
+              <div class="field">
+                <label>PDF del avalúo (opcional)</label>
+                <label class="input-archivo ${_mbAvaluoPdf ? 'con-archivo' : ''}" id="lbl-mb-avaluo">
+                  <input type="file" id="mb-avaluo-pdf" accept="application/pdf" onchange="onSubirAvaluoPdfMB(this)">
+                  <div class="input-archivo-ico">📄</div>
+                  <div class="input-archivo-label">${_mbAvaluoPdf ? '✓ PDF cargado' : 'Click para subir PDF'}</div>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="mb-grupo">
+            <div class="mb-grupo-tit">📊 Estudio de mercado rápido</div>
+            <div style="font-size:10.5px;color:var(--text-tertiary);margin-bottom:8px">Cuánto valen casas comparables en la zona</div>
+            <div class="mb-rango">
+              <div class="field"><label>Valor BAJO *</label><input type="number" id="mb-mercado-low" step="0.01" value="${g.estudio_mercado_low || ''}" placeholder="1200000"></div>
+              <div class="field"><label>Valor ALTO *</label><input type="number" id="mb-mercado-high" step="0.01" value="${g.estudio_mercado_high || ''}" placeholder="1800000"></div>
+            </div>
+            <div class="field">
+              <label>Notas del análisis (opcional)</label>
+              <textarea id="mb-mercado-notas" rows="2" placeholder="Comparé 3 casas similares en la cuadra...">${escapeHtml(g.estudio_mercado_notas || '')}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions" style="padding: 12px 20px; background: var(--bg-tint)">
+          ${enCadenaInfo}
+          <button class="btn-modal-mb cancel" onclick="cerrarModalMiniBaner()">Cancelar</button>
+          <button class="btn-modal-mb solo-guardar" onclick="guardarMiniBaner('solo_guardar')">💾 Solo guardar</button>
+          <button class="btn-modal-mb mandar" onclick="guardarMiniBaner('mandar_predictamen')">⚖️ Guardar y Mandar a Pre-dictamen</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const prev = document.getElementById('modalMiniBaner');
+  if (prev) prev.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  renderPreviewGaleriaMB();
+  if (_mbMapsLink) onCambiarMapsLink(_mbMapsLink);
+}
+
+function onCambiarMapsLink(link) {
+  _mbMapsLink = link.trim();
+  const display = document.getElementById('mb-coords-display');
+  if (!display) return;
+  if (!_mbMapsLink) {
+    _mbLat = null; _mbLng = null;
+    display.innerHTML = '';
+    return;
+  }
+  const coords = extraerCoordenadasMaps(_mbMapsLink);
+  if (coords) {
+    _mbLat = coords.lat;
+    _mbLng = coords.lng;
+    display.innerHTML = `
+      <div style="background:#DCFCE7;color:#166534;padding:6px 10px;border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span>✅ Coordenadas detectadas: <strong>${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}</strong></span>
+        <a href="${escapeHtml(_mbMapsLink)}" target="_blank" style="background:#0F6E56;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:10.5px;font-weight:600">📍 Ver en Maps</a>
+      </div>
+    `;
+  } else {
+    _mbLat = null; _mbLng = null;
+    const esShortUrl = /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(_mbMapsLink);
+    if (esShortUrl) {
+      display.innerHTML = `<div style="background:#FEF3C7;color:#92400e;padding:6px 10px;border-radius:6px;font-size:11px">⚠️ Es un link corto · abre el link en Maps → click derecho en el pin → "Copiar enlace" y pega ESE link.</div>`;
+    } else {
+      display.innerHTML = `<div style="background:#FEE2E2;color:#b91c1c;padding:6px 10px;border-radius:6px;font-size:11px">❌ No se detectaron coordenadas en el link</div>`;
+    }
+  }
+}
+
+function cerrarModalMiniBaner() {
+  const m = document.getElementById('modalMiniBaner');
+  if (m) m.remove();
+  _mbActualId = null;
+  _mbFotoFachada = null;
+  _mbGaleria = [];
+  _mbAvaluoPdf = null;
+  _mbMapsLink = '';
+  _mbLat = null;
+  _mbLng = null;
+}
+
+async function onSubirFotoFachadaMB(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const lbl = document.getElementById('lbl-mb-foto');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = 'Subiendo...';
+  try {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `fachada/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const { error } = await sb.storage.from('garantias-fotos').upload(path, file);
+    if (error) throw error;
+    const { data: urlData } = sb.storage.from('garantias-fotos').getPublicUrl(path);
+    _mbFotoFachada = urlData.publicUrl;
+    document.getElementById('preview-mb-foto').innerHTML = `<img src="${_mbFotoFachada}" class="foto-preview">`;
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = '✓ Foto cargada · click para reemplazar';
+    mostrarToast('success', '✓ Foto subida');
+  } catch (err) {
+    mostrarToast('error', 'Error: ' + (err.message || ''));
+    labelDiv.textContent = 'Click para subir';
+  }
+}
+
+async function onSubirGaleriaMB(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  const lbl = document.getElementById('lbl-mb-galeria');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = `Subiendo ${files.length}...`;
+  try {
+    for (const file of files) {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `galeria/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const { error } = await sb.storage.from('garantias-fotos').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = sb.storage.from('garantias-fotos').getPublicUrl(path);
+      _mbGaleria.push(urlData.publicUrl);
+    }
+    renderPreviewGaleriaMB();
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = `✓ ${_mbGaleria.length} fotos · click para agregar más`;
+    mostrarToast('success', `✓ ${files.length} fotos subidas`);
+    input.value = '';
+  } catch (err) {
+    mostrarToast('error', 'Error: ' + (err.message || ''));
+  }
+}
+
+function renderPreviewGaleriaMB() {
+  const cont = document.getElementById('preview-mb-galeria');
+  if (!cont) return;
+  cont.innerHTML = _mbGaleria.map((url, idx) => `
+    <div class="galeria-thumb">
+      <img src="${url}">
+      <button class="galeria-thumb-quitar" onclick="quitarFotoGaleriaMB(${idx})">✕</button>
+    </div>
+  `).join('');
+}
+
+function quitarFotoGaleriaMB(idx) {
+  _mbGaleria.splice(idx, 1);
+  renderPreviewGaleriaMB();
+  const lbl = document.getElementById('lbl-mb-galeria');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  if (_mbGaleria.length === 0) {
+    lbl.classList.remove('con-archivo');
+    labelDiv.textContent = 'Varias fotos';
+  } else {
+    labelDiv.innerHTML = `✓ ${_mbGaleria.length} fotos · click para agregar más`;
+  }
+}
+
+async function onSubirAvaluoPdfMB(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const lbl = document.getElementById('lbl-mb-avaluo');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = 'Subiendo PDF...';
+  try {
+    const path = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.pdf`;
+    const { error } = await sb.storage.from('garantias-avaluos').upload(path, file);
+    if (error) throw error;
+    _mbAvaluoPdf = path;
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = '✓ PDF cargado';
+    mostrarToast('success', '✓ Avalúo subido');
+  } catch (err) {
+    mostrarToast('error', 'Error: ' + (err.message || ''));
+  }
+}
+
+async function guardarMiniBaner(opcion) {
+  if (!_mbActualId) return;
+  const calle = document.getElementById('mb-calle').value.trim();
+  const num_exterior = document.getElementById('mb-num-ext').value.trim();
+  const num_interior = document.getElementById('mb-num-int').value.trim();
+  const entre_calles = document.getElementById('mb-entre-calles').value.trim();
+  const codigo_postal = document.getElementById('mb-cp').value.trim();
+  const tipo_inmueble = document.getElementById('mb-tipo-inmueble').value;
+  const avaluo_valor = parseFloat(document.getElementById('mb-avaluo-valor').value) || null;
+  const estudio_mercado_low = parseFloat(document.getElementById('mb-mercado-low').value) || null;
+  const estudio_mercado_high = parseFloat(document.getElementById('mb-mercado-high').value) || null;
+  const estudio_mercado_notas = document.getElementById('mb-mercado-notas').value.trim() || null;
+
+  const payload = {
+    foto_fachada: _mbFotoFachada,
+    galeria_fotos: _mbGaleria,
+    avaluo_valor: avaluo_valor,
+    avaluo_pdf: _mbAvaluoPdf,
+    estudio_mercado_low: estudio_mercado_low,
+    estudio_mercado_high: estudio_mercado_high,
+    estudio_mercado_notas: estudio_mercado_notas,
+    entre_calles: entre_calles || null,
+    calle: calle || null,
+    num_exterior: num_exterior || null,
+    num_interior: num_interior || null,
+    codigo_postal: codigo_postal || null,
+    tipo_inmueble: tipo_inmueble || null,
+    google_maps_link: _mbMapsLink || null,
+    lat: _mbLat,
+    lng: _mbLng,
+    direccion_validada: !!(_mbLat && _mbLng),
+    actualizado_en: new Date().toISOString()
+  };
+
+  const gActual = _garantias.find(x => x.id === _mbActualId);
+  if (gActual && gActual.estatus !== 'registrada' && !gActual.correccion_usada) {
+    payload.correccion_usada = true;
+    payload.correccion_fecha = new Date().toISOString();
+    payload.correccion_por = _userEmail;
+  }
+
+  if (opcion === 'mandar_predictamen') {
+    const v = validarParaPredictamen({ ...payload });
+    if (!v.valido) {
+      mostrarToast('error', '⚠️ Faltan datos · revisa los campos marcados con *');
+      alert('No se puede mandar a pre-dictamen.\n\nFaltan:\n• ' + v.faltantes.join('\n• '));
+      return;
+    }
+    payload.estatus = 'en_pre_dictamen';
+  }
+  try {
+    const { error } = await sb.from('garantias').update(payload).eq('id', _mbActualId);
+    if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
+    await cargarGarantiasTodas();
+    const garantiaProcesada = _mbActualId;
+    cerrarModalMiniBaner();
+    if (_colaPredictamen.length > 0) {
+      _colaPredictamen = _colaPredictamen.filter(id => id !== garantiaProcesada);
+      _completadasEnCadena++;
+      if (_colaPredictamen.length > 0) {
+        mostrarToast('success', `✓ ${_completadasEnCadena} listas · siguen ${_colaPredictamen.length}`);
+        setTimeout(() => abrirModalMiniBaner(_colaPredictamen[0], true), 300);
+        return;
+      } else {
+        mostrarToast('success', `✓ ${_completadasEnCadena} garantía(s) procesadas en cadena`);
+        _completadasEnCadena = 0;
+        _seleccionados.clear();
+        renderVistaGarantias();
+        return;
+      }
+    }
+    if (opcion === 'mandar_predictamen') {
+      mostrarToast('success', '✓ Garantía mandada a pre-dictamen URRJ');
+    } else {
+      mostrarToast('success', '✓ Datos guardados');
+    }
+    renderVistaGarantias();
+  } catch (err) {
+    mostrarToast('error', 'Error inesperado');
+  }
+}
+
+function abrirDetalleGarantia(id) {
+  const g = _garantias.find(x => x.id === id);
+  if (!g) return;
+  const cartera = _carteras.find(c => c.id === g.cartera_id);
+  const admin = cartera && cartera.admin_id ? _admins.find(a => a.id === cartera.admin_id) : null;
+  const posicion = POSICIONES_PROCESALES[g.posicion_procesal] || POSICIONES_PROCESALES.OTROS;
+  const tipoInmuebleLabel = (TIPOS_INMUEBLE.find(t => t.id === g.tipo_inmueble) || {}).label || g.tipo_inmueble || '—';
+  const acreedoresHtml = (g.acreedores && g.acreedores.length) ? g.acreedores.map(a => 
+    `<div class="acreedor-detalle">💳 <strong>${escapeHtml(a.nombre || '')}</strong>${a.monto ? ' · $' + Number(a.monto).toLocaleString('es-MX') : ''}</div>`
+  ).join('') : '<div style="color:var(--text-tertiary)">Sin acreedores registrados</div>';
+  const val = validarParaPredictamen(g);
+  const checklistHtml = `
+    <div class="checklist-validacion">
+      <h5>${val.valido ? '✅ Mini báner completo · lista para pre-dictamen' : '⚠️ Mini báner incompleto'}</h5>
+      <div class="checklist-item ${g.foto_fachada ? 'ok' : 'falta'}"><span class="checklist-ico">${g.foto_fachada ? '✓' : '✕'}</span> Foto de fachada</div>
+      <div class="checklist-item ${g.avaluo_valor ? 'ok' : 'falta'}"><span class="checklist-ico">${g.avaluo_valor ? '✓' : '✕'}</span> Valor del avalúo</div>
+      <div class="checklist-item ${(g.estudio_mercado_low && g.estudio_mercado_high) ? 'ok' : 'falta'}"><span class="checklist-ico">${(g.estudio_mercado_low && g.estudio_mercado_high) ? '✓' : '✕'}</span> Estudio de mercado (rango)</div>
+      <div class="checklist-item ${g.entre_calles ? 'ok' : 'falta'}"><span class="checklist-ico">${g.entre_calles ? '✓' : '✕'}</span> Entre calles</div>
+      <div class="checklist-item ${g.codigo_postal ? 'ok' : 'falta'}"><span class="checklist-ico">${g.codigo_postal ? '✓' : '✕'}</span> Código postal</div>
+      <div class="checklist-item ${g.tipo_inmueble ? 'ok' : 'falta'}"><span class="checklist-ico">${g.tipo_inmueble ? '✓' : '✕'}</span> Tipo de inmueble</div>
+      <div class="checklist-item ${(g.lat && g.lng) ? 'ok' : 'falta'}"><span class="checklist-ico">${(g.lat && g.lng) ? '✓' : '✕'}</span> Link de Google Maps con coordenadas</div>
+      ${(g.estatus === 'registrada' && !val.valido) ? `<button class="btn-card primary" style="width:100%;margin-top:8px" onclick="cerrarDetalle(); abrirModalMiniBaner(${g.id}, false)">📝 Llenar pre-dictamen ahora</button>` : ''}
+      ${(g.estatus !== 'registrada' && g.estatus !== 'rechazada' && !g.correccion_usada) ? `<button class="btn-card primary" style="width:100%;margin-top:8px; background:linear-gradient(135deg,#F59E0B,#D97706)" onclick="cerrarDetalle(); abrirModalMiniBaner(${g.id}, false)">✏️ Corregir mini báner (1 oportunidad)</button>` : ''}
+      ${g.correccion_usada ? `
+        <div style="background:#FEF3C7; border:1px solid #FCD34D; padding:10px; border-radius:7px; margin-top:8px; font-size:11.5px; color:#92400e">
+          ⚠️ <strong>Ya usaste tu corrección</strong> el ${g.correccion_fecha ? new Date(g.correccion_fecha).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}<br>
+          Por: ${escapeHtml(g.correccion_por || '—')}
+        </div>
+        <button class="btn-card primary" style="width:100%;margin-top:8px; background:linear-gradient(135deg,#534AB7,#6B5FD0)" onclick="solicitarValidacionCorreccion(${g.id})">📨 Solicitar validación para corregir de nuevo</button>
+      ` : ''}
+    </div>
+  `;
+  const galeriaHtml = (g.galeria_fotos && g.galeria_fotos.length) ? 
+    `<div class="galeria-grid">${g.galeria_fotos.map(url => `<div class="galeria-thumb"><img src="${url}"></div>`).join('')}</div>` :
+    '<div style="color:var(--text-tertiary); font-size:11px">Sin galería</div>';
+  const html = `
+    <div class="modal-overlay show" id="modalDetalleGar" onclick="if(event.target===this)cerrarDetalle()">
+      <div class="modal-box modal-grande">
+        <div class="modal-hdr">
+          <div>
+            <div class="modal-hdr-title">${escapeHtml(g.folio || '')}</div>
+            <div class="modal-hdr-sub">${escapeHtml(g.direccion || '')}</div>
+          </div>
+          <button class="modal-hdr-x" onclick="cerrarDetalle()">✕</button>
+        </div>
+        <div class="modal-body">
+          ${g.foto_fachada ? `<img src="${g.foto_fachada}" style="width:100%; max-height:280px; object-fit:cover; border-radius:8px; margin-bottom:10px">` : ''}
+          ${checklistHtml}
+          <div class="modal-section-title">🤖 Posición procesal</div>
+          <div style="background:${posicion.color}11; border-left:3px solid ${posicion.color}; padding:10px 14px; border-radius:8px"><strong style="color:${posicion.color}">${posicion.label}</strong> · ${escapeHtml(posicion.sub)}</div>
+          <div class="modal-section-title">📋 Línea de vida</div>
+          ${construirLineaVida(g)}
+          <div class="modal-section-title">📂 Información general</div>
+          <div class="field-row">
+            <div class="field"><label>Cartera</label><div>${cartera ? escapeHtml(cartera.folio + ' · ' + cartera.nombre) : '—'}</div></div>
+            <div class="field"><label>Administradora</label><div>${admin ? escapeHtml(admin.folio + ' · ' + admin.nombre) : '—'}</div></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Tipo de caso</label><div>${escapeHtml(g.tipo_caso || '—')}</div></div>
+            <div class="field"><label>Tipo de inmueble</label><div>${escapeHtml(tipoInmuebleLabel)}</div></div>
+          </div>
+          <div class="modal-section-title">💳 Acreedor(es) original(es)</div>
+          ${acreedoresHtml}
+          <div class="modal-section-title">📍 Ubicación</div>
+          <div class="field"><label>Dirección</label><div>${escapeHtml(g.direccion || '—')}</div></div>
+          ${(g.calle || g.num_exterior || g.num_interior) ? `
+            <div class="field-row">
+              <div class="field"><label>Calle</label><div>${escapeHtml(g.calle || '—')}</div></div>
+              <div class="field"><label>Núm. Ext / Int</label><div>${escapeHtml(g.num_exterior || '—')}${g.num_interior ? ' · Int ' + escapeHtml(g.num_interior) : ''}</div></div>
+            </div>
+          ` : ''}
+          <div class="field-row">
+            <div class="field"><label>Entre calles</label><div>${escapeHtml(g.entre_calles || '—')}</div></div>
+            <div class="field"><label>Código postal</label><div>${escapeHtml(g.codigo_postal || '—')}</div></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Estado</label><div>${escapeHtml(g.estado_mx || '—')}</div></div>
+            <div class="field"><label>Municipio</label><div>${escapeHtml(g.municipio || '—')}</div></div>
+          </div>
+          ${g.lat && g.lng ? `
+            <div class="field">
+              <label>Coordenadas Google Maps</label>
+              <div style="background:#DCFCE7;color:#166534;padding:8px 12px;border-radius:7px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px">
+                <span>📍 <strong>${Number(g.lat).toFixed(6)}, ${Number(g.lng).toFixed(6)}</strong></span>
+                ${g.google_maps_link ? `<a href="${escapeHtml(g.google_maps_link)}" target="_blank" style="background:#0F6E56;color:white;padding:5px 12px;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600">📍 Abrir en Maps</a>` : ''}
+              </div>
+            </div>
+          ` : '<div class="field"><label>Coordenadas Google Maps</label><div style="color:#b91c1c;font-size:11px">⚠️ Sin coordenadas registradas</div></div>'}
+          <div class="modal-section-title">📸 Galería</div>
+          ${galeriaHtml}
+          <div class="modal-section-title">💰 Valores</div>
+          <div class="field-row">
+            <div class="field"><label>Avalúo (valor)</label><div>${g.avaluo_valor ? '$' + Number(g.avaluo_valor).toLocaleString('es-MX') : '—'}</div></div>
+            <div class="field"><label>Valor estimado interno</label><div>${g.valor_estimado ? '$' + Number(g.valor_estimado).toLocaleString('es-MX') : '—'}</div></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Estudio · BAJO</label><div>${g.estudio_mercado_low ? '$' + Number(g.estudio_mercado_low).toLocaleString('es-MX') : '—'}</div></div>
+            <div class="field"><label>Estudio · ALTO</label><div>${g.estudio_mercado_high ? '$' + Number(g.estudio_mercado_high).toLocaleString('es-MX') : '—'}</div></div>
+          </div>
+          ${g.estudio_mercado_notas ? `<div class="field"><label>Notas del estudio</label><div>${escapeHtml(g.estudio_mercado_notas)}</div></div>` : ''}
+          <div class="field"><label>Precio piso (confidencial)</label><div>${g.precio_piso ? '$' + Number(g.precio_piso).toLocaleString('es-MX') : '—'}</div></div>
+          <div class="modal-section-title">📐 Medidas</div>
+          <div class="field-row">
+            <div class="field"><label>M² Terreno</label><div>${g.m2_terreno || '—'}</div></div>
+            <div class="field"><label>M² Construcción</label><div>${g.m2_construccion || '—'}</div></div>
+          </div>
+          <div class="modal-section-title">⚙️ Cambiar estatus</div>
+          <select id="cambiar-estatus-gar" style="width:100%">
+            ${ETAPAS_VIDA.map(e => `<option value="${e.id}" ${e.id === g.estatus ? 'selected' : ''}>${e.ico} ${e.label}</option>`).join('')}
+            <option value="rechazada" ${g.estatus === 'rechazada' ? 'selected' : ''}>✕ Rechazada</option>
+            <option value="archivada" ${g.estatus === 'archivada' ? 'selected' : ''}>📦 Archivada</option>
+          </select>
+          <button class="btn-card primary" style="width:100%; margin-top:8px" onclick="cambiarEstatusGarantia(${g.id})">Actualizar estatus</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const prev = document.getElementById('modalDetalleGar');
+  if (prev) prev.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function solicitarValidacionCorreccion(garantiaId) {
+  const g = _garantias.find(x => x.id === garantiaId);
+  if (!g) return;
+  mostrarToast('error', '🚧 Próximamente · Módulo de Validaciones');
+  alert('Para solicitar otra corrección del mini báner:\n\n📨 Por ahora, contacta al director del área por WhatsApp o email.\n\nEn la próxima fase tendremos el Módulo de Validaciones para hacerlo desde el sistema.');
+}
+
+function cerrarDetalle() {
+  const m = document.getElementById('modalDetalleGar');
+  if (m) m.remove();
+}
+
+async function cambiarEstatusGarantia(id) {
+  const nuevo = document.getElementById('cambiar-estatus-gar').value;
+  if (nuevo === 'en_pre_dictamen') {
+    const g = _garantias.find(x => x.id === id);
+    if (g) {
+      const v = validarParaPredictamen(g);
+      if (!v.valido) {
+        mostrarToast('error', '⚠️ Faltan datos · llena el mini báner primero');
+        cerrarDetalle();
+        abrirModalMiniBaner(id, false);
+        return;
+      }
+    }
+  }
+  try {
+    const { error } = await sb.from('garantias').update({ estatus: nuevo, actualizado_en: new Date().toISOString() }).eq('id', id);
+    if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
+    mostrarToast('success', '✓ Estatus actualizado');
+    cerrarDetalle();
+    await cargarGarantiasTodas();
+    renderVistaGarantias();
+  } catch (err) { mostrarToast('error', 'Error inesperado'); }
+}
+
+async function archivarGarantia(id) {
+  if (!confirm('¿Archivar esta garantía?')) return;
+  try {
+    const { error } = await sb.from('garantias').update({ archivada: true, actualizado_en: new Date().toISOString() }).eq('id', id);
+    if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
+    mostrarToast('success', '✓ Archivada');
+    _seleccionados.delete(id);
+    await cargarGarantiasTodas();
+    renderVistaGarantias();
+  } catch (err) {}
+}
+
+async function eliminarGarantia(id) {
+  if (!confirm('¿Eliminar esta garantía?')) return;
+  try {
+    const { error } = await sb.from('garantias').update({ eliminada: true, actualizado_en: new Date().toISOString() }).eq('id', id);
+    if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
+    mostrarToast('success', '✓ Eliminada');
+    _seleccionados.delete(id);
+    await cargarGarantiasTodas();
+    renderVistaGarantias();
+  } catch (err) {}
+}
+
+function renderPapelera() {
+  const cont = document.getElementById('cyg-view-papelera');
+  if (!cont) return;
+  const archivadas = _garantias.filter(g => g.archivada && !g.eliminada);
+  const eliminadas = _garantias.filter(g => g.eliminada);
+  const duplicadas = detectarDuplicados();
+  cont.innerHTML = `
+    <div class="cyg-section">
+      <div class="cyg-section-hdr">
+        <div style="display:flex; gap:12px; align-items:flex-start; flex:1">
+          <div class="cyg-section-ico">🗑️</div>
+          <div>
+            <h3>Papelera y duplicados</h3>
+            <p>Restaura, elimina permanentemente o resuelve duplicados.</p>
+          </div>
+        </div>
+      </div>
+      <div class="pap-subtabs">
+        <button class="pap-subtab ${_tabPap === 'archivadas' ? 'active' : ''}" onclick="cambiarTabPap('archivadas')">📦 Archivadas (${archivadas.length})</button>
+        <button class="pap-subtab ${_tabPap === 'eliminadas' ? 'active' : ''}" onclick="cambiarTabPap('eliminadas')">🗑️ Eliminadas (${eliminadas.length})</button>
+        <button class="pap-subtab ${_tabPap === 'duplicadas' ? 'active' : ''}" onclick="cambiarTabPap('duplicadas')">⚠️ Duplicadas (${duplicadas.length})</button>
+      </div>
+      <div id="pap-contenido"></div>
+    </div>
+  `;
+  renderPapelerasubtab();
+}
+
+function cambiarTabPap(sub) { _tabPap = sub; renderPapelera(); }
+
+function renderPapelerasubtab() {
+  const cont = document.getElementById('pap-contenido');
+  if (!cont) return;
+  if (_tabPap === 'archivadas') {
+    const lista = _garantias.filter(g => g.archivada && !g.eliminada);
+    if (!lista.length) { cont.innerHTML = `<div class="empty-state-mini"><div class="icon-mini">📦</div><p>No hay archivadas.</p></div>`; return; }
+    cont.innerHTML = `<div class="pap-list">${lista.map(g => filaPapelera(g, 'archivada')).join('')}</div>`;
+  } else if (_tabPap === 'eliminadas') {
+    const lista = _garantias.filter(g => g.eliminada);
+    if (!lista.length) { cont.innerHTML = `<div class="empty-state-mini"><div class="icon-mini">🗑️</div><p>No hay eliminadas.</p></div>`; return; }
+    cont.innerHTML = `<div class="pap-list">${lista.map(g => filaPapelera(g, 'eliminada')).join('')}</div>`;
+  } else if (_tabPap === 'duplicadas') {
+    const dups = detectarDuplicados();
+    if (!dups.length) { cont.innerHTML = `<div class="empty-state-mini"><div class="icon-mini">✓</div><p>No se detectaron duplicados.</p></div>`; return; }
+    cont.innerHTML = `<div class="pap-list">${dups.map(par => `
+      <div class="pap-duplicado">
+        <div class="pap-dup-header">⚠️ Misma dirección normalizada</div>
+        <div class="pap-dup-pair">
+          ${[par.a, par.b].map(g => `
+            <div class="pap-dup-card">
+              <div class="cyg-cartera-folio">${escapeHtml(g.folio || '')}</div>
+              <div class="cyg-cartera-name">${escapeHtml(g.direccion || '')}</div>
+              <div style="font-size:11px; color:var(--text-tertiary); margin-top:4px">Cartera: ${escapeHtml((_carteras.find(c => c.id === g.cartera_id) || {}).folio || '—')}</div>
+              <button class="btn-mini danger" style="margin-top:8px" onclick="eliminarGarantia(${g.id})">🗑️ Eliminar esta</button>
+              <button class="btn-mini" style="margin-top:8px" onclick="abrirDetalleGarantia(${g.id})">👁️ Ver</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}</div>`;
+  }
+}
+
+function filaPapelera(g, tipo) {
+  const cartera = _carteras.find(c => c.id === g.cartera_id);
+  return `
+    <div class="pap-item">
+      <div style="flex:1; min-width:0">
+        <div class="cyg-cartera-folio">${escapeHtml(g.folio || '')}</div>
+        <div class="cyg-cartera-name">${escapeHtml(g.direccion || '')}</div>
+        <div style="font-size:11px; color:var(--text-tertiary); margin-top:4px">📂 ${cartera ? escapeHtml(cartera.folio || '') : '—'} · ${escapeHtml(g.tipo_caso || '')}</div>
+      </div>
+      <div style="display:flex; gap:6px">
+        <button class="btn-mini" onclick="restaurarGarantia(${g.id}, '${tipo}')">↩️ Restaurar</button>
+        ${tipo === 'eliminada' ? `<button class="btn-mini danger" onclick="eliminarPermanente(${g.id})">💀 Borrar permanente</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function detectarDuplicados() {
+  const dups = [];
+  const activas = _garantias.filter(g => !g.archivada && !g.eliminada);
+  for (let i = 0; i < activas.length; i++) {
+    for (let j = i + 1; j < activas.length; j++) {
+      if (activas[i].direccion_norm && activas[i].direccion_norm === activas[j].direccion_norm) {
+        dups.push({ a: activas[i], b: activas[j] });
+      }
+    }
+  }
+  return dups;
+}
+
+async function restaurarGarantia(id, tipo) {
+  if (!confirm(`¿Restaurar esta garantía?`)) return;
+  const update = tipo === 'archivada' ? { archivada: false } : { eliminada: false };
+  try {
+    const { error } = await sb.from('garantias').update({ ...update, actualizado_en: new Date().toISOString() }).eq('id', id);
+    if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
+    mostrarToast('success', '✓ Restaurada');
+    await cargarGarantiasTodas();
+    renderPapelera();
+  } catch (err) {}
+}
+
+async function eliminarPermanente(id) {
+  if (!confirm('⚠️ ¿Borrar PERMANENTEMENTE? NO SE PUEDE DESHACER.')) return;
+  try {
+    const { error } = await sb.from('garantias').delete().eq('id', id);
+    if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
+    mostrarToast('success', '✓ Borrada permanentemente');
+    await cargarGarantiasTodas();
+    renderPapelera();
+  } catch (err) {}
+}
