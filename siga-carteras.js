@@ -1,16 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════
-   SIGA · siga-carteras.js · DIIPA · Fase 3.3 COMPLETA + 3.3-E
-   MÓDULO: Carteras y Garantías
-   - Tab 1 · Gestión de Carteras + Agregar Garantía + Carga masiva
-   - Tab 2 · Vista por Garantías + línea de vida + validación pre-dictamen
-   - Tab 3 · Papelera y duplicados
-   NUEVO 3.3-E:
-   - Mini báner de pre-revisión (foto, avalúo, estudio mercado)
-   - Subida real a Supabase Storage (buckets garantias-fotos + garantias-avaluos)
-   - Validación del botón "Mandar a Pre-dictaminar URRJ"
+   SIGA · siga-carteras.js · DIIPA · Fase 3.3 + 3.3-E (CORREGIDA)
+   FLUJO CORRECTO:
+   - Crear garantía → solo datos básicos (sin mini báner)
+   - Mandar a Pre-dictaminar → SI faltan datos del mini báner →
+     se abre el modal AHÍ para llenarlos
+   - Botón directo "📝 Pre-dictamen" en cada fila incompleta
+   - Modales en cadena para selección masiva
+   - Link de Google Maps con extracción automática de coordenadas
 ═══════════════════════════════════════════════════════════════ */
 
-/* ─── INYECTAR ESTILOS ADICIONALES ─── */
+/* ─── INYECTAR ESTILOS ─── */
 (function inyectarEstilosCyG() {
   if (document.getElementById('siga-carteras-styles')) return;
   const css = `
@@ -34,6 +33,8 @@
     .fila-gar-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
     .meta-chip { font-size: 10px; background: var(--bg-tint); color: var(--text-secondary); padding: 3px 8px; border-radius: 5px; font-weight: 500; }
     .fila-gar-acciones { display: flex; flex-direction: column; gap: 4px; }
+    .btn-pre-llamativo { background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important; color: white !important; border: none !important; font-weight: 600 !important; }
+    .btn-pre-llamativo:hover { background: linear-gradient(135deg, #D97706 0%, #B45309 100%) !important; }
 
     .linea-vida { display: flex; align-items: center; gap: 4px; margin-top: 12px; padding-top: 10px; border-top: 0.5px dashed var(--border-light); overflow-x: auto; }
     .etapa-vida { display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
@@ -63,15 +64,16 @@
 
     .acreedor-detalle { background: var(--bg-tint); border-radius: 7px; padding: 8px 12px; margin-bottom: 5px; font-size: 12px; }
 
-    /* ═══ MINI BÁNER DE PRE-REVISIÓN (Fase 3.3-E) ═══ */
-    .mini-baner { background: linear-gradient(135deg, #FEF7E6 0%, #FEF3C7 100%); border: 1.5px solid #F59E0B; border-radius: 10px; padding: 14px; margin: 14px 0; }
-    .mini-baner-titulo { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
-    .mini-baner-sub { font-size: 10.5px; color: #92400e; opacity: 0.85; margin-bottom: 12px; line-height: 1.45; }
-    .mini-baner-grupo { background: var(--bg-card); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
-    .mini-baner-grupo-tit { font-size: 11px; font-weight: 600; color: var(--diipa-azul); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-    .mini-baner-grupo:last-child { margin-bottom: 0; }
+    /* MINI BÁNER en MODAL */
+    .mb-aviso { background: linear-gradient(135deg, #FEF7E6 0%, #FEF3C7 100%); border-bottom: 1px solid #F59E0B; padding: 10px 20px; display: flex; align-items: center; gap: 8px; }
+    .mb-aviso-ico { font-size: 18px; color: #92400e; }
+    .mb-aviso-txt { font-size: 11px; color: #92400e; line-height: 1.4; }
 
-    .input-archivo { background: var(--bg-tint); border: 1px dashed var(--border); border-radius: 7px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+    .mb-grupo { background: var(--bg-tint); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    .mb-grupo-tit { font-size: 11px; font-weight: 600; color: var(--diipa-azul); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .mb-grupo:last-child { margin-bottom: 0; }
+
+    .input-archivo { background: var(--bg-card); border: 1px dashed var(--border); border-radius: 7px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
     .input-archivo:hover { background: var(--diipa-azul-bg); border-color: var(--diipa-azul-claro); }
     .input-archivo input[type="file"] { display: none; }
     .input-archivo-ico { font-size: 24px; }
@@ -82,13 +84,12 @@
     .input-archivo.obligatorio.con-archivo { border-color: #86EFAC; }
 
     .foto-preview { width: 100%; max-height: 140px; object-fit: cover; border-radius: 6px; margin-top: 6px; }
-    .galeria-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin-top: 8px; }
+    .galeria-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; margin-top: 8px; }
     .galeria-thumb { position: relative; width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: var(--bg-tint); }
     .galeria-thumb img { width: 100%; height: 100%; object-fit: cover; }
     .galeria-thumb-quitar { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.6); color: white; border: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; }
 
-    .estudio-rango { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
+    .mb-rango { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .checklist-validacion { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
     .checklist-validacion h5 { font-size: 11.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
     .checklist-item { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 3px 0; }
@@ -96,17 +97,17 @@
     .checklist-item.falta { color: #b91c1c; }
     .checklist-ico { width: 14px; text-align: center; }
 
-    .modal-validacion { background: #FEE2E2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
-    .modal-validacion h5 { font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px; }
-    .modal-validacion ul { margin-left: 18px; font-size: 11.5px; color: #7f1d1d; }
-    .modal-validacion li { margin: 2px 0; }
+    .btn-modal-mb { padding: 9px 16px; border-radius: 8px; font-size: 12px; font-family: 'Sora', sans-serif; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-modal-mb.cancel { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-modal-mb.solo-guardar { background: #185FA5; color: white; }
+    .btn-modal-mb.solo-guardar:hover { background: #0C447C; }
+    .btn-modal-mb.mandar { background: linear-gradient(135deg, #534AB7 0%, #6B5FD0 100%); color: white; font-weight: 600; }
+    .btn-modal-mb.mandar:hover { background: linear-gradient(135deg, #3C3489 0%, #534AB7 100%); }
+    .btn-modal-mb:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .mb-cola-info { background: #DBEAFE; color: #1E40AF; padding: 6px 12px; border-radius: 6px; font-size: 11px; margin-right: auto; }
 
     .btn-card:disabled { opacity: 0.45; cursor: not-allowed; }
-    .btn-card.con-tooltip { position: relative; }
-    .btn-card.con-tooltip:disabled:hover::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #b91c1c; color: white; padding: 7px 12px; border-radius: 6px; font-size: 10.5px; white-space: nowrap; max-width: 280px; white-space: normal; width: 240px; line-height: 1.4; z-index: 100; }
-
-    .upload-progress { width: 100%; height: 4px; background: var(--bg-tint); border-radius: 2px; overflow: hidden; margin-top: 6px; }
-    .upload-progress-bar { height: 100%; background: var(--diipa-teal); width: 0%; transition: width 0.3s; }
   `;
   const style = document.createElement('style');
   style.id = 'siga-carteras-styles';
@@ -175,7 +176,6 @@ const ACREEDORES_SUGERIDOS = [
 let _carteras = [];
 let _garantias = [];
 let _editandoCarteraId = null;
-let _editandoGarantiaId = null;
 let _tabCyG = 'principal';
 let _tabPap = 'archivadas';
 let _acreedoresActuales = [];
@@ -185,9 +185,16 @@ let _filasError = [];
 let _filtroV = { busqueda: '', cartera: '', estatus: '', admin: '', posicion: '' };
 let _seleccionados = new Set();
 
-let _fotoFachadaUrl = null;
-let _galeriaFotosUrls = [];
-let _avaluoPdfUrl = null;
+let _mbActualId = null;
+let _mbFotoFachada = null;
+let _mbGaleria = [];
+let _mbAvaluoPdf = null;
+let _mbMapsLink = '';
+let _mbLat = null;
+let _mbLng = null;
+let _colaPredictamen = [];
+let _completadasEnCadena = 0;
+let _accionFinalCola = 'mandar';
 
 function detectarPosicionProcesal(tipoCaso) {
   if (!tipoCaso) return 'OTROS';
@@ -206,7 +213,7 @@ async function inicializarCyG() {
 async function cargarCarteras() {
   try {
     const { data, error } = await sb.from('carteras').select('*').eq('eliminada', false).order('folio', { ascending: true });
-    if (error) { console.error('Error carteras:', error); _carteras = []; return; }
+    if (error) { console.error(error); _carteras = []; return; }
     _carteras = data || [];
   } catch (err) { console.error(err); _carteras = []; }
 }
@@ -214,7 +221,7 @@ async function cargarCarteras() {
 async function cargarGarantiasTodas() {
   try {
     const { data, error } = await sb.from('garantias').select('*').order('folio', { ascending: true });
-    if (error) { console.error('Error garantías:', error); _garantias = []; return; }
+    if (error) { console.error(error); _garantias = []; return; }
     _garantias = data || [];
   } catch (err) { console.error(err); _garantias = []; }
 }
@@ -244,151 +251,30 @@ function cambiarTabCyG(tab) {
 function renderFormGarantiaCompleto() {
   const cont = document.querySelector('.cyg-form-individual');
   if (!cont) return;
-  _fotoFachadaUrl = null;
-  _galeriaFotosUrls = [];
-  _avaluoPdfUrl = null;
-
   cont.innerHTML = `
     <h4>➕ Agregar Garantía Individual</h4>
-    <div class="field">
-      <label>📂 Cartera a la que pertenece *</label>
-      <select id="gar-cartera"></select>
+    <div style="background: var(--diipa-azul-bg); border-left: 3px solid var(--diipa-azul); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 11px; color: var(--diipa-azul-oscuro)">
+      💡 Solo datos básicos. La foto, avalúo y estudio de mercado se llenan después, al momento de mandar a pre-dictaminar.
     </div>
-    <div class="field">
-      <label>⚖️ Tipo de Caso *</label>
-      <select id="gar-tipo-caso" onchange="onCambiarTipoCaso()"></select>
-      <div class="posicion-detectada" id="gar-posicion-detectada"></div>
-    </div>
-    <div class="field">
-      <label>💳 Acreedor original (banco / institución)</label>
-      <div id="gar-acreedores-list"></div>
-    </div>
-    <div class="field">
-      <label>📜 No. de Crédito (opcional)</label>
-      <input type="text" id="gar-num-credito">
-    </div>
-
-    <div class="mini-baner">
-      <div class="mini-baner-titulo">⭐ Mini báner de pre-revisión</div>
-      <div class="mini-baner-sub">Datos que Comercial DEBE llenar antes de poder mandar a pre-dictaminar. El equipo URRJ necesita esto para hacer su trabajo bien.</div>
-
-      <div class="mini-baner-grupo">
-        <div class="mini-baner-grupo-tit">📍 Ubicación validada</div>
-        <div class="field">
-          <label>Dirección / Ubicación *</label>
-          <input type="text" id="gar-direccion" placeholder="Calle, Colonia, Ciudad, Estado">
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Entre calles *</label>
-            <input type="text" id="gar-entre-calles" placeholder="Ej. Av. López Mateos y Av. Vallarta">
-          </div>
-          <div class="field">
-            <label>Código postal *</label>
-            <input type="text" id="gar-cp" maxlength="5" placeholder="44100">
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label>Estado</label><input type="text" id="gar-estado"></div>
-          <div class="field"><label>Municipio</label><input type="text" id="gar-municipio"></div>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Tipo de inmueble *</label>
-            <select id="gar-tipo-inmueble">
-              <option value="">— Seleccionar —</option>
-              ${TIPOS_INMUEBLE.map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`).join('')}
-            </select>
-          </div>
-          <div class="field" style="padding-top: 22px">
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer">
-              <input type="checkbox" id="gar-direccion-validada" style="width:16px; height:16px">
-              <span>✓ Dirección verificada en Google Maps</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="mini-baner-grupo">
-        <div class="mini-baner-grupo-tit">📸 Foto fachada + galería</div>
-        <div class="field-row">
-          <div class="field">
-            <label>Foto de fachada *</label>
-            <label class="input-archivo obligatorio" id="lbl-foto-fachada">
-              <input type="file" id="gar-foto-fachada" accept="image/jpeg,image/png,image/webp" onchange="onSubirFotoFachada(this)">
-              <div class="input-archivo-ico">📷</div>
-              <div class="input-archivo-label">Click para subir foto principal</div>
-            </label>
-            <div id="preview-foto-fachada"></div>
-          </div>
-          <div class="field">
-            <label>Galería opcional</label>
-            <label class="input-archivo" id="lbl-galeria">
-              <input type="file" id="gar-galeria" accept="image/jpeg,image/png,image/webp" multiple onchange="onSubirGaleria(this)">
-              <div class="input-archivo-ico">🖼️</div>
-              <div class="input-archivo-label">Varias fotos (interior, calle, etc.)</div>
-            </label>
-            <div class="galeria-grid" id="preview-galeria"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="mini-baner-grupo">
-        <div class="mini-baner-grupo-tit">💰 Avalúo comercial</div>
-        <div class="field-row">
-          <div class="field">
-            <label>Valor del avalúo (MXN) *</label>
-            <input type="number" id="gar-avaluo-valor" step="0.01" placeholder="1500000">
-          </div>
-          <div class="field">
-            <label>PDF del avalúo (opcional)</label>
-            <label class="input-archivo" id="lbl-avaluo-pdf">
-              <input type="file" id="gar-avaluo-pdf" accept="application/pdf" onchange="onSubirAvaluoPdf(this)">
-              <div class="input-archivo-ico">📄</div>
-              <div class="input-archivo-label">Click para subir PDF</div>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="mini-baner-grupo">
-        <div class="mini-baner-grupo-tit">📊 Estudio de mercado rápido</div>
-        <div style="font-size:10.5px; color:var(--text-tertiary); margin-bottom:8px">Cuánto valen casas comparables en la zona según calles, vecindario, etc.</div>
-        <div class="estudio-rango">
-          <div class="field">
-            <label>Valor BAJO de la zona *</label>
-            <input type="number" id="gar-mercado-low" step="0.01" placeholder="1200000">
-          </div>
-          <div class="field">
-            <label>Valor ALTO de la zona *</label>
-            <input type="number" id="gar-mercado-high" step="0.01" placeholder="1800000">
-          </div>
-        </div>
-        <div class="field">
-          <label>Notas del análisis (opcional)</label>
-          <textarea id="gar-mercado-notas" rows="2" placeholder="Comparé 3 casas similares en la cuadra..."></textarea>
-        </div>
-      </div>
-    </div>
-
+    <div class="field"><label>📂 Cartera a la que pertenece *</label><select id="gar-cartera"></select></div>
+    <div class="field"><label>⚖️ Tipo de Caso *</label><select id="gar-tipo-caso" onchange="onCambiarTipoCaso()"></select><div class="posicion-detectada" id="gar-posicion-detectada"></div></div>
+    <div class="field"><label>💳 Acreedor original (banco / institución)</label><div id="gar-acreedores-list"></div></div>
+    <div class="field"><label>📜 No. de Crédito (opcional)</label><input type="text" id="gar-num-credito"></div>
+    <div class="field"><label>📍 Dirección / Ubicación *</label><input type="text" id="gar-direccion" placeholder="Calle, Colonia, Ciudad, Estado"></div>
     <div class="field-row">
-      <div class="field">
-        <label>💰 Valor estimado interno ($)</label>
-        <input type="number" step="0.01" id="gar-valor" placeholder="Promedio que usaremos">
-      </div>
-      <div class="field">
-        <label>🎯 Precio piso ($) <span style="font-size:9px; color:#92400e">(confidencial · Dirección)</span></label>
-        <input type="number" step="0.01" id="gar-precio-piso">
-      </div>
+      <div class="field"><label>Estado</label><input type="text" id="gar-estado"></div>
+      <div class="field"><label>Municipio</label><input type="text" id="gar-municipio"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>💰 Valor estimado interno ($)</label><input type="number" step="0.01" id="gar-valor"></div>
+      <div class="field"><label>🎯 Precio piso ($) <span style="font-size:9px; color:#92400e">(confidencial · Dirección)</span></label><input type="number" step="0.01" id="gar-precio-piso"></div>
     </div>
     <div class="field-row">
       <div class="field"><label>📐 M² Terreno</label><input type="number" step="0.01" id="gar-m2-terreno"></div>
       <div class="field"><label>🏠 M² Construcción</label><input type="number" step="0.01" id="gar-m2-construccion"></div>
     </div>
-    
     <button class="btn-card primary" id="btnGuardarGarantia" onclick="guardarGarantiaIndividual()" style="width:100%; margin-top:12px">+ Agregar Garantía</button>
   `;
-
   poblarSelectCarteras();
   poblarSelectTiposCaso();
   poblarDatalistAcreedores();
@@ -415,8 +301,7 @@ function renderCarterasGrid() {
 function poblarSelectCarteras() {
   const sel = document.getElementById('gar-cartera');
   if (!sel) return;
-  const opts = _carteras.filter(c => !c.archivada && c.estatus !== 'cerrada')
-    .map(c => `<option value="${c.id}">${escapeHtml(c.folio || '')} · ${escapeHtml(c.nombre || '')}</option>`).join('');
+  const opts = _carteras.filter(c => !c.archivada && c.estatus !== 'cerrada').map(c => `<option value="${c.id}">${escapeHtml(c.folio || '')} · ${escapeHtml(c.nombre || '')}</option>`).join('');
   sel.innerHTML = '<option value="">— Seleccionar cartera —</option>' + opts;
 }
 
@@ -464,124 +349,18 @@ function renderAcreedores() {
   `).join('') + `<button class="btn-mini" onclick="agregarAcreedor()" style="margin-top:6px">+ Agregar acreedor (cofinanciamiento)</button>`;
 }
 
-function actualizarAcreedor(idx, campo, valor) {
-  if (!_acreedoresActuales[idx]) return;
-  _acreedoresActuales[idx][campo] = valor;
-}
-
-function agregarAcreedor() {
-  _acreedoresActuales.push({ nombre: '', monto: '' });
-  renderAcreedores();
-}
-
+function actualizarAcreedor(idx, campo, valor) { if (!_acreedoresActuales[idx]) return; _acreedoresActuales[idx][campo] = valor; }
+function agregarAcreedor() { _acreedoresActuales.push({ nombre: '', monto: '' }); renderAcreedores(); }
 function quitarAcreedor(idx) {
   _acreedoresActuales.splice(idx, 1);
   if (!_acreedoresActuales.length) _acreedoresActuales = [{ nombre: '', monto: '' }];
   renderAcreedores();
 }
 
-async function onSubirFotoFachada(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const lbl = document.getElementById('lbl-foto-fachada');
-  lbl.classList.remove('con-archivo');
-  const labelDiv = lbl.querySelector('.input-archivo-label');
-  labelDiv.textContent = 'Subiendo...';
-  try {
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `fachada/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-    const { data, error } = await sb.storage.from('garantias-fotos').upload(path, file);
-    if (error) throw error;
-    const { data: urlData } = sb.storage.from('garantias-fotos').getPublicUrl(path);
-    _fotoFachadaUrl = urlData.publicUrl;
-    document.getElementById('preview-foto-fachada').innerHTML = `<img src="${_fotoFachadaUrl}" class="foto-preview">`;
-    lbl.classList.add('con-archivo');
-    labelDiv.innerHTML = '✓ Foto subida · click para reemplazar';
-    mostrarToast('success', '✓ Foto fachada subida');
-  } catch (err) {
-    console.error(err);
-    mostrarToast('error', 'Error al subir foto: ' + (err.message || ''));
-    labelDiv.textContent = 'Click para subir foto principal';
-  }
-}
-
-async function onSubirGaleria(input) {
-  const files = Array.from(input.files || []);
-  if (!files.length) return;
-  const lbl = document.getElementById('lbl-galeria');
-  const labelDiv = lbl.querySelector('.input-archivo-label');
-  labelDiv.textContent = `Subiendo ${files.length}...`;
-  try {
-    for (const file of files) {
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-      const path = `galeria/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-      const { error } = await sb.storage.from('garantias-fotos').upload(path, file);
-      if (error) throw error;
-      const { data: urlData } = sb.storage.from('garantias-fotos').getPublicUrl(path);
-      _galeriaFotosUrls.push(urlData.publicUrl);
-    }
-    renderPreviewGaleria();
-    lbl.classList.add('con-archivo');
-    labelDiv.innerHTML = `✓ ${_galeriaFotosUrls.length} fotos · click para agregar más`;
-    mostrarToast('success', `✓ ${files.length} fotos subidas`);
-    input.value = '';
-  } catch (err) {
-    console.error(err);
-    mostrarToast('error', 'Error al subir galería: ' + (err.message || ''));
-    labelDiv.textContent = 'Varias fotos (interior, calle, etc.)';
-  }
-}
-
-function renderPreviewGaleria() {
-  const cont = document.getElementById('preview-galeria');
-  if (!cont) return;
-  cont.innerHTML = _galeriaFotosUrls.map((url, idx) => `
-    <div class="galeria-thumb">
-      <img src="${url}">
-      <button class="galeria-thumb-quitar" onclick="quitarFotoGaleria(${idx})">✕</button>
-    </div>
-  `).join('');
-}
-
-function quitarFotoGaleria(idx) {
-  _galeriaFotosUrls.splice(idx, 1);
-  renderPreviewGaleria();
-  const lbl = document.getElementById('lbl-galeria');
-  const labelDiv = lbl.querySelector('.input-archivo-label');
-  if (_galeriaFotosUrls.length === 0) {
-    lbl.classList.remove('con-archivo');
-    labelDiv.textContent = 'Varias fotos (interior, calle, etc.)';
-  } else {
-    labelDiv.innerHTML = `✓ ${_galeriaFotosUrls.length} fotos · click para agregar más`;
-  }
-}
-
-async function onSubirAvaluoPdf(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const lbl = document.getElementById('lbl-avaluo-pdf');
-  const labelDiv = lbl.querySelector('.input-archivo-label');
-  labelDiv.textContent = 'Subiendo PDF...';
-  try {
-    const path = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.pdf`;
-    const { error } = await sb.storage.from('garantias-avaluos').upload(path, file);
-    if (error) throw error;
-    _avaluoPdfUrl = path;
-    lbl.classList.add('con-archivo');
-    labelDiv.innerHTML = '✓ Avalúo PDF subido';
-    mostrarToast('success', '✓ Avalúo subido');
-  } catch (err) {
-    console.error(err);
-    mostrarToast('error', 'Error al subir avalúo: ' + (err.message || ''));
-    labelDiv.textContent = 'Click para subir PDF';
-  }
-}
-
 async function abrirModalCartera(id) {
   _editandoCarteraId = id;
   const selAdmin = document.getElementById('cart-admin');
-  selAdmin.innerHTML = '<option value="">— Sin administradora —</option>' +
-    _admins.filter(a => a.estatus === 'activa').map(a => `<option value="${a.id}">${escapeHtml(a.folio || '')} · ${escapeHtml(a.nombre || '')}</option>`).join('');
+  selAdmin.innerHTML = '<option value="">— Sin administradora —</option>' + _admins.filter(a => a.estatus === 'activa').map(a => `<option value="${a.id}">${escapeHtml(a.folio || '')} · ${escapeHtml(a.nombre || '')}</option>`).join('');
   const selOrigen = document.getElementById('cart-origen');
   selOrigen.innerHTML = TIPOS_ORIGEN.map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`).join('');
   if (id) {
@@ -611,10 +390,7 @@ async function abrirModalCartera(id) {
   document.getElementById('modalCartera').classList.add('show');
 }
 
-function cerrarModalCartera() {
-  document.getElementById('modalCartera').classList.remove('show');
-  _editandoCarteraId = null;
-}
+function cerrarModalCartera() { document.getElementById('modalCartera').classList.remove('show'); _editandoCarteraId = null; }
 
 async function generarFolioCartera() {
   try {
@@ -630,8 +406,7 @@ async function guardarCartera() {
   if (!nombre) { mostrarToast('error', 'El nombre de la cartera es obligatorio'); return; }
   const adminVal = document.getElementById('cart-admin').value;
   const payload = {
-    folio: document.getElementById('cart-folio').value.trim(),
-    nombre: nombre,
+    folio: document.getElementById('cart-folio').value.trim(), nombre: nombre,
     admin_id: adminVal ? parseInt(adminVal) : null,
     tipo_origen: document.getElementById('cart-origen').value,
     estatus: document.getElementById('cart-estatus').value,
@@ -644,20 +419,13 @@ async function guardarCartera() {
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
     let res;
-    if (_editandoCarteraId) {
-      res = await sb.from('carteras').update(payload).eq('id', _editandoCarteraId);
-    } else {
-      payload.creado_por = _userEmail;
-      payload.creado_en = new Date().toISOString();
-      res = await sb.from('carteras').insert(payload);
-    }
-    if (res.error) { console.error(res.error); mostrarToast('error', 'Error: ' + res.error.message); return; }
+    if (_editandoCarteraId) res = await sb.from('carteras').update(payload).eq('id', _editandoCarteraId);
+    else { payload.creado_por = _userEmail; payload.creado_en = new Date().toISOString(); res = await sb.from('carteras').insert(payload); }
+    if (res.error) { mostrarToast('error', 'Error: ' + res.error.message); return; }
     cerrarModalCartera();
     mostrarToast('success', _editandoCarteraId ? '✓ Cartera actualizada' : '✓ Cartera creada');
-    await cargarCarteras();
-    renderCarterasGrid();
-    poblarSelectCarteras();
-  } catch (err) { console.error(err); mostrarToast('error', 'Error inesperado'); }
+    await cargarCarteras(); renderCarterasGrid(); poblarSelectCarteras();
+  } catch (err) { mostrarToast('error', 'Error inesperado'); }
   finally { btn.disabled = false; btn.textContent = 'Guardar'; }
 }
 
@@ -671,9 +439,7 @@ async function guardarGarantiaIndividual() {
   const direccionNorm = normalizarDireccion(direccion);
   const dup = _garantias.find(g => g.direccion_norm === direccionNorm && !g.eliminada);
   if (dup) { mostrarToast('error', '⚠️ Ya existe una garantía con esa dirección (' + (dup.folio || '') + ')'); return; }
-  const acreedoresLimpios = _acreedoresActuales
-    .map(a => ({ nombre: (a.nombre || '').trim(), monto: parseFloat(a.monto) || null }))
-    .filter(a => a.nombre);
+  const acreedoresLimpios = _acreedoresActuales.map(a => ({ nombre: (a.nombre || '').trim(), monto: parseFloat(a.monto) || null })).filter(a => a.nombre);
   const folio = await generarFolioGarantia();
   const posicion = detectarPosicionProcesal(tipoCaso);
   const payload = {
@@ -687,29 +453,18 @@ async function guardarGarantiaIndividual() {
     precio_piso: parseFloat(document.getElementById('gar-precio-piso').value) || null,
     m2_terreno: parseFloat(document.getElementById('gar-m2-terreno').value) || null,
     m2_construccion: parseFloat(document.getElementById('gar-m2-construccion').value) || null,
-    foto_fachada: _fotoFachadaUrl,
-    galeria_fotos: _galeriaFotosUrls,
-    avaluo_valor: parseFloat(document.getElementById('gar-avaluo-valor').value) || null,
-    avaluo_pdf: _avaluoPdfUrl,
-    estudio_mercado_low: parseFloat(document.getElementById('gar-mercado-low').value) || null,
-    estudio_mercado_high: parseFloat(document.getElementById('gar-mercado-high').value) || null,
-    estudio_mercado_notas: document.getElementById('gar-mercado-notas').value.trim() || null,
-    entre_calles: document.getElementById('gar-entre-calles').value.trim() || null,
-    codigo_postal: document.getElementById('gar-cp').value.trim() || null,
-    tipo_inmueble: document.getElementById('gar-tipo-inmueble').value || null,
-    direccion_validada: document.getElementById('gar-direccion-validada').checked,
     estatus: 'registrada', creado_por: _userEmail, creado_en: new Date().toISOString()
   };
   const btn = document.getElementById('btnGuardarGarantia');
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
     const { error } = await sb.from('garantias').insert(payload);
-    if (error) { console.error(error); mostrarToast('error', 'Error: ' + error.message); return; }
+    if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
     mostrarToast('success', '✓ Garantía ' + folio + ' agregada · Posición: ' + posicion);
     await cargarGarantiasTodas();
     renderCarterasGrid();
     renderFormGarantiaCompleto();
-  } catch (err) { console.error(err); mostrarToast('error', 'Error inesperado'); }
+  } catch (err) { mostrarToast('error', 'Error inesperado'); }
   finally { btn.disabled = false; btn.textContent = '+ Agregar Garantía'; }
 }
 
@@ -731,14 +486,29 @@ function validarParaPredictamen(garantia) {
   const faltantes = [];
   if (!garantia.foto_fachada) faltantes.push('foto de fachada');
   if (!garantia.avaluo_valor) faltantes.push('valor del avalúo');
-  if (!garantia.estudio_mercado_low || !garantia.estudio_mercado_high) faltantes.push('estudio de mercado (rango bajo/alto)');
+  if (!garantia.estudio_mercado_low || !garantia.estudio_mercado_high) faltantes.push('estudio de mercado (rango)');
   if (!garantia.entre_calles) faltantes.push('entre calles');
   if (!garantia.codigo_postal) faltantes.push('código postal');
   if (!garantia.tipo_inmueble) faltantes.push('tipo de inmueble');
-  if (!garantia.direccion_validada) faltantes.push('marcar dirección validada en Google Maps');
+  if (!garantia.lat || !garantia.lng) faltantes.push('link de Google Maps con coordenadas');
   return { valido: faltantes.length === 0, faltantes };
 }
 
+function extraerCoordenadasMaps(link) {
+  if (!link) return null;
+  let m = link.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = link.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = link.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = link.match(/[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  return null;
+}
+/* ═══════════════════════════════════════════════════════════════
+   CARGA MASIVA
+═══════════════════════════════════════════════════════════════ */
 function procesarArchivoMasivo(file) {
   if (!file) return;
   if (typeof XLSX === 'undefined') { mostrarToast('error', 'SheetJS no cargada'); return; }
@@ -749,7 +519,7 @@ function procesarArchivoMasivo(file) {
       const wb = XLSX.read(data, { type: 'array' });
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
       validarYPreparar(rows);
-    } catch (err) { console.error(err); mostrarToast('error', 'Error al leer el archivo'); }
+    } catch (err) { mostrarToast('error', 'Error al leer el archivo'); }
   };
   reader.readAsArrayBuffer(file);
 }
@@ -812,16 +582,16 @@ async function confirmarCargaMasiva() {
   try {
     const { data } = await sb.from('garantias').select('folio').ilike('folio', 'GAR-%').order('folio', { ascending: false }).limit(1);
     if (data && data.length) nextNum = (parseInt((data[0].folio || '').split('-')[1]) || 0) + 1;
-  } catch (err) { console.error(err); }
+  } catch (err) {}
   const conFolios = _filasParaSubir.map((f, i) => ({ ...f, folio: 'GAR-' + String(nextNum + i).padStart(4, '0') }));
   try {
     const { error } = await sb.from('garantias').insert(conFolios);
-    if (error) { console.error(error); mostrarToast('error', 'Error: ' + error.message); return; }
+    if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
     mostrarToast('success', `✓ ${conFolios.length} garantías subidas`);
     cancelarCargaMasiva();
     await cargarGarantiasTodas();
     renderCarterasGrid();
-  } catch (err) { console.error(err); mostrarToast('error', 'Error inesperado'); }
+  } catch (err) { mostrarToast('error', 'Error inesperado'); }
 }
 
 function cancelarCargaMasiva() {
@@ -855,7 +625,7 @@ function renderVistaGarantias() {
           <div class="cyg-section-ico">🏷️</div>
           <div style="flex:1">
             <h3 id="tabla-garantias-titulo">Garantías Registradas (0)</h3>
-            <p>Solo las garantías con mini báner completo pueden mandarse a pre-dictamen</p>
+            <p>Click en "📝 Pre-dictamen" en cada fila para llenar los datos o mándalas masivamente</p>
           </div>
         </div>
         <div class="filtros-vista">
@@ -883,7 +653,7 @@ function renderVistaGarantias() {
         <span id="seleccionados-count">0 garantías seleccionadas</span>
         <div style="flex:1"></div>
         <button class="btn-card secondary" onclick="seleccionarTodas()">☑️ Seleccionar todo</button>
-        <button class="btn-card primary con-tooltip" id="btn-mandar-pre" onclick="mandarAPredictamen()" style="background:linear-gradient(135deg,#534AB7,#6B5FD0)">⚖️ Mandar a Pre-dictaminar URRJ</button>
+        <button class="btn-card primary" id="btn-mandar-pre" onclick="iniciarFlujoPredictamen()" style="background:linear-gradient(135deg,#534AB7,#6B5FD0)">⚖️ Mandar a Pre-dictaminar URRJ</button>
       </div>
     </div>
   `;
@@ -972,6 +742,9 @@ function construirFilaGarantia(g) {
   const val = validarParaPredictamen(g);
   const estadoBaner = val.valido ? '<span class="meta-chip" style="background:#DCFCE7;color:#166534">✓ Listo para pre-dictamen</span>' : `<span class="meta-chip" style="background:#FEF3C7;color:#92400e">⚠️ Faltan ${val.faltantes.length} dato${val.faltantes.length !== 1 ? 's' : ''}</span>`;
   const thumbFoto = g.foto_fachada ? `<img src="${g.foto_fachada}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; flex-shrink:0">` : '';
+  const botonPredictamen = (g.estatus === 'registrada' && !val.valido)
+    ? `<button class="btn-mini btn-pre-llamativo" onclick="abrirModalMiniBaner(${g.id}, false)">📝 Pre-dictamen</button>`
+    : '';
   return `
     <div class="fila-garantia ${isChecked ? 'seleccionada' : ''}">
       <div class="fila-gar-top">
@@ -989,8 +762,9 @@ function construirFilaGarantia(g) {
           </div>
         </div>
         <div class="fila-gar-acciones">
+          ${botonPredictamen}
           <button class="btn-mini" onclick="abrirDetalleGarantia(${g.id})">👁️ Ver</button>
-          <button class="btn-mini" onclick="archivarGarantia(${g.id})">📦 Archivar</button>
+          <button class="btn-mini" onclick="archivarGarantia(${g.id})">📦</button>
           <button class="btn-mini danger" onclick="eliminarGarantia(${g.id})">🗑️</button>
         </div>
       </div>
@@ -1053,54 +827,378 @@ function actualizarContadorSeleccion() {
   if (lbl) lbl.textContent = `${_seleccionados.size} garantía${_seleccionados.size !== 1 ? 's' : ''} seleccionada${_seleccionados.size !== 1 ? 's' : ''}`;
   const btn = document.getElementById('btn-mandar-pre');
   if (!btn) return;
-  if (_seleccionados.size === 0) {
-    btn.disabled = true;
-    btn.setAttribute('data-tooltip', 'Selecciona al menos una garantía');
-    return;
-  }
-  const noValidas = [];
+  btn.disabled = _seleccionados.size === 0;
+}
+
+async function iniciarFlujoPredictamen() {
+  if (!_seleccionados.size) { mostrarToast('error', 'Selecciona al menos una garantía'); return; }
+  const completas = [];
+  const incompletas = [];
   _seleccionados.forEach(id => {
     const g = _garantias.find(x => x.id === id);
-    if (g) {
-      const v = validarParaPredictamen(g);
-      if (!v.valido) noValidas.push({ folio: g.folio, faltantes: v.faltantes });
-    }
+    if (!g) return;
+    if (g.estatus !== 'registrada') return;
+    const v = validarParaPredictamen(g);
+    if (v.valido) completas.push(g);
+    else incompletas.push(g);
   });
-  if (noValidas.length) {
-    btn.disabled = true;
-    btn.setAttribute('data-tooltip', `${noValidas.length} garantía${noValidas.length !== 1 ? 's' : ''} sin mini báner completo. Click en cada una para ver qué falta.`);
+  if (!completas.length && !incompletas.length) {
+    mostrarToast('error', 'Las garantías seleccionadas no están en estatus "registrada"');
+    return;
+  }
+  let mensaje = '';
+  if (completas.length) mensaje += `✓ ${completas.length} garantía(s) listas (se mandan directo)\n`;
+  if (incompletas.length) mensaje += `📝 ${incompletas.length} garantía(s) sin datos completos\n   (se abrirá un modal por cada una)\n`;
+  mensaje += `\n¿Continuar?`;
+  if (!confirm(mensaje)) return;
+  if (completas.length) {
+    try {
+      const ids = completas.map(g => g.id);
+      const { error } = await sb.from('garantias').update({ estatus: 'en_pre_dictamen', actualizado_en: new Date().toISOString() }).in('id', ids);
+      if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
+      _completadasEnCadena = completas.length;
+    } catch (err) { mostrarToast('error', 'Error inesperado'); return; }
   } else {
-    btn.disabled = false;
-    btn.removeAttribute('data-tooltip');
+    _completadasEnCadena = 0;
+  }
+  if (incompletas.length) {
+    _colaPredictamen = incompletas.map(g => g.id);
+    _accionFinalCola = 'mandar';
+    abrirModalMiniBaner(_colaPredictamen[0], true);
+  } else {
+    mostrarToast('success', `✓ ${_completadasEnCadena} garantía(s) mandadas a pre-dictamen`);
+    _seleccionados.clear();
+    _completadasEnCadena = 0;
+    await cargarGarantiasTodas();
+    renderVistaGarantias();
   }
 }
 
-async function mandarAPredictamen() {
-  if (!_seleccionados.size) { mostrarToast('error', 'Selecciona al menos una garantía'); return; }
-  const noValidas = [];
-  _seleccionados.forEach(id => {
-    const g = _garantias.find(x => x.id === id);
-    if (g) {
-      const v = validarParaPredictamen(g);
-      if (!v.valido) noValidas.push({ folio: g.folio, faltantes: v.faltantes });
-    }
-  });
-  if (noValidas.length) {
-    const detalle = noValidas.map(n => `${n.folio}: ${n.faltantes.join(', ')}`).join('\n');
-    mostrarToast('error', `⚠️ ${noValidas.length} garantía(s) sin mini báner completo`);
-    alert('NO se puede mandar a pre-dictamen.\n\nFaltantes:\n\n' + detalle);
+function abrirModalMiniBaner(garantiaId, enCadena) {
+  const g = _garantias.find(x => x.id === garantiaId);
+  if (!g) return;
+  _mbActualId = garantiaId;
+  _mbFotoFachada = g.foto_fachada || null;
+  _mbGaleria = Array.isArray(g.galeria_fotos) ? [...g.galeria_fotos] : [];
+  _mbAvaluoPdf = g.avaluo_pdf || null;
+  _mbMapsLink = g.google_maps_link || '';
+  _mbLat = g.lat || null;
+  _mbLng = g.lng || null;
+  const enCadenaInfo = enCadena && _colaPredictamen.length > 1
+    ? `<div class="mb-cola-info">📋 Modal ${_completadasEnCadena + 1} de ${_completadasEnCadena + _colaPredictamen.length} · van en cadena</div>`
+    : '';
+  const html = `
+    <div class="modal-overlay show" id="modalMiniBaner" onclick="if(event.target===this)cerrarModalMiniBaner()">
+      <div class="modal-box" style="max-width: 560px">
+        <div class="modal-hdr">
+          <div>
+            <div class="modal-hdr-title">📝 Llenar Mini Báner para Pre-dictamen</div>
+            <div class="modal-hdr-sub">${escapeHtml(g.folio || '')} · ${escapeHtml(g.direccion || '')}</div>
+          </div>
+          <button class="modal-hdr-x" onclick="cerrarModalMiniBaner()">✕</button>
+        </div>
+        <div class="mb-aviso">
+          <span class="mb-aviso-ico">ℹ️</span>
+          <span class="mb-aviso-txt">Estos datos son obligatorios para que URRJ pueda hacer el pre-dictamen. Sin esto, no se manda.</span>
+        </div>
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto">
+          <div class="mb-grupo">
+            <div class="mb-grupo-tit">📍 Ubicación validada</div>
+            <div class="field-row">
+              <div class="field"><label>Entre calles *</label><input type="text" id="mb-entre-calles" value="${escapeHtml(g.entre_calles || '')}" placeholder="Av. López Mateos y Vallarta"></div>
+              <div class="field"><label>Código postal *</label><input type="text" id="mb-cp" maxlength="5" value="${escapeHtml(g.codigo_postal || '')}" placeholder="44100"></div>
+            </div>
+            <div class="field">
+              <label>Tipo de inmueble *</label>
+              <select id="mb-tipo-inmueble">
+                <option value="">— Seleccionar —</option>
+                ${TIPOS_INMUEBLE.map(t => `<option value="${t.id}" ${g.tipo_inmueble === t.id ? 'selected' : ''}>${escapeHtml(t.label)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label>🔗 Link de Google Maps *</label>
+              <input type="text" id="mb-maps-link" value="${escapeHtml(g.google_maps_link || '')}" placeholder="Pega aquí el link COMPLETO de Google Maps" oninput="onCambiarMapsLink(this.value)">
+              <div id="mb-coords-display" style="margin-top:6px;font-size:11px"></div>
+              <div style="font-size:10.5px;color:var(--text-tertiary);margin-top:4px">
+                💡 Abre Google Maps · busca la dirección · click derecho → "Copiar enlace" · pega aquí
+              </div>
+            </div>
+          </div>
+          <div class="mb-grupo">
+            <div class="mb-grupo-tit">📸 Foto fachada + galería</div>
+            <div class="field-row">
+              <div class="field">
+                <label>Foto fachada *</label>
+                <label class="input-archivo obligatorio ${_mbFotoFachada ? 'con-archivo' : ''}" id="lbl-mb-foto">
+                  <input type="file" id="mb-foto-fachada" accept="image/jpeg,image/png,image/webp" onchange="onSubirFotoFachadaMB(this)">
+                  <div class="input-archivo-ico">${_mbFotoFachada ? '✓' : '📷'}</div>
+                  <div class="input-archivo-label">${_mbFotoFachada ? '✓ Foto cargada · click para reemplazar' : 'Click para subir'}</div>
+                </label>
+                <div id="preview-mb-foto">${_mbFotoFachada ? `<img src="${_mbFotoFachada}" class="foto-preview">` : ''}</div>
+              </div>
+              <div class="field">
+                <label>Galería opcional</label>
+                <label class="input-archivo ${_mbGaleria.length ? 'con-archivo' : ''}" id="lbl-mb-galeria">
+                  <input type="file" id="mb-galeria" accept="image/jpeg,image/png,image/webp" multiple onchange="onSubirGaleriaMB(this)">
+                  <div class="input-archivo-ico">🖼️</div>
+                  <div class="input-archivo-label">${_mbGaleria.length ? `✓ ${_mbGaleria.length} fotos · click para agregar` : 'Varias fotos'}</div>
+                </label>
+                <div class="galeria-grid" id="preview-mb-galeria"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mb-grupo">
+            <div class="mb-grupo-tit">💰 Avalúo comercial</div>
+            <div class="field-row">
+              <div class="field">
+                <label>Valor avalúo (MXN) *</label>
+                <input type="number" id="mb-avaluo-valor" step="0.01" value="${g.avaluo_valor || ''}" placeholder="1500000">
+              </div>
+              <div class="field">
+                <label>PDF del avalúo (opcional)</label>
+                <label class="input-archivo ${_mbAvaluoPdf ? 'con-archivo' : ''}" id="lbl-mb-avaluo">
+                  <input type="file" id="mb-avaluo-pdf" accept="application/pdf" onchange="onSubirAvaluoPdfMB(this)">
+                  <div class="input-archivo-ico">📄</div>
+                  <div class="input-archivo-label">${_mbAvaluoPdf ? '✓ PDF cargado' : 'Click para subir PDF'}</div>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="mb-grupo">
+            <div class="mb-grupo-tit">📊 Estudio de mercado rápido</div>
+            <div style="font-size:10.5px;color:var(--text-tertiary);margin-bottom:8px">Cuánto valen casas comparables en la zona</div>
+            <div class="mb-rango">
+              <div class="field"><label>Valor BAJO *</label><input type="number" id="mb-mercado-low" step="0.01" value="${g.estudio_mercado_low || ''}" placeholder="1200000"></div>
+              <div class="field"><label>Valor ALTO *</label><input type="number" id="mb-mercado-high" step="0.01" value="${g.estudio_mercado_high || ''}" placeholder="1800000"></div>
+            </div>
+            <div class="field">
+              <label>Notas del análisis (opcional)</label>
+              <textarea id="mb-mercado-notas" rows="2" placeholder="Comparé 3 casas similares en la cuadra...">${escapeHtml(g.estudio_mercado_notas || '')}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions" style="padding: 12px 20px; background: var(--bg-tint)">
+          ${enCadenaInfo}
+          <button class="btn-modal-mb cancel" onclick="cerrarModalMiniBaner()">Cancelar</button>
+          <button class="btn-modal-mb solo-guardar" onclick="guardarMiniBaner('solo_guardar')">💾 Solo guardar</button>
+          <button class="btn-modal-mb mandar" onclick="guardarMiniBaner('mandar_predictamen')">⚖️ Guardar y Mandar a Pre-dictamen</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const prev = document.getElementById('modalMiniBaner');
+  if (prev) prev.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  renderPreviewGaleriaMB();
+  if (_mbMapsLink) onCambiarMapsLink(_mbMapsLink);
+}
+
+function onCambiarMapsLink(link) {
+  _mbMapsLink = link.trim();
+  const display = document.getElementById('mb-coords-display');
+  if (!display) return;
+  if (!_mbMapsLink) {
+    _mbLat = null; _mbLng = null;
+    display.innerHTML = '';
     return;
   }
-  if (!confirm(`¿Mandar ${_seleccionados.size} garantía(s) a Pre-dictaminar URRJ?\n\nEsto cambia su estatus a "En pre-dictamen". Después un abogado URRJ revisará cada caso.`)) return;
+  const coords = extraerCoordenadasMaps(_mbMapsLink);
+  if (coords) {
+    _mbLat = coords.lat;
+    _mbLng = coords.lng;
+    display.innerHTML = `
+      <div style="background:#DCFCE7;color:#166534;padding:6px 10px;border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span>✅ Coordenadas detectadas: <strong>${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}</strong></span>
+        <a href="${escapeHtml(_mbMapsLink)}" target="_blank" style="background:#0F6E56;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:10.5px;font-weight:600">📍 Ver en Maps</a>
+      </div>
+    `;
+  } else {
+    _mbLat = null; _mbLng = null;
+    const esShortUrl = /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(_mbMapsLink);
+    if (esShortUrl) {
+      display.innerHTML = `
+        <div style="background:#FEF3C7;color:#92400e;padding:6px 10px;border-radius:6px;font-size:11px">
+          ⚠️ Es un link corto · no podemos leer coordenadas. <strong>Abre el link → en Maps → click derecho en el pin → "Copiar enlace"</strong> y pega ESE link.
+        </div>
+      `;
+    } else {
+      display.innerHTML = `
+        <div style="background:#FEE2E2;color:#b91c1c;padding:6px 10px;border-radius:6px;font-size:11px">
+          ❌ No se detectaron coordenadas en el link
+        </div>
+      `;
+    }
+  }
+}
+
+function cerrarModalMiniBaner() {
+  const m = document.getElementById('modalMiniBaner');
+  if (m) m.remove();
+  _mbActualId = null;
+  _mbFotoFachada = null;
+  _mbGaleria = [];
+  _mbAvaluoPdf = null;
+  _mbMapsLink = '';
+  _mbLat = null;
+  _mbLng = null;
+}
+
+async function onSubirFotoFachadaMB(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const lbl = document.getElementById('lbl-mb-foto');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = 'Subiendo...';
   try {
-    const ids = Array.from(_seleccionados);
-    const { error } = await sb.from('garantias').update({ estatus: 'en_pre_dictamen', actualizado_en: new Date().toISOString() }).in('id', ids);
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `fachada/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const { error } = await sb.storage.from('garantias-fotos').upload(path, file);
+    if (error) throw error;
+    const { data: urlData } = sb.storage.from('garantias-fotos').getPublicUrl(path);
+    _mbFotoFachada = urlData.publicUrl;
+    document.getElementById('preview-mb-foto').innerHTML = `<img src="${_mbFotoFachada}" class="foto-preview">`;
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = '✓ Foto cargada · click para reemplazar';
+    mostrarToast('success', '✓ Foto subida');
+  } catch (err) {
+    mostrarToast('error', 'Error: ' + (err.message || ''));
+    labelDiv.textContent = 'Click para subir';
+  }
+}
+
+async function onSubirGaleriaMB(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  const lbl = document.getElementById('lbl-mb-galeria');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = `Subiendo ${files.length}...`;
+  try {
+    for (const file of files) {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `galeria/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const { error } = await sb.storage.from('garantias-fotos').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = sb.storage.from('garantias-fotos').getPublicUrl(path);
+      _mbGaleria.push(urlData.publicUrl);
+    }
+    renderPreviewGaleriaMB();
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = `✓ ${_mbGaleria.length} fotos · click para agregar más`;
+    mostrarToast('success', `✓ ${files.length} fotos subidas`);
+    input.value = '';
+  } catch (err) {
+    mostrarToast('error', 'Error: ' + (err.message || ''));
+  }
+}
+
+function renderPreviewGaleriaMB() {
+  const cont = document.getElementById('preview-mb-galeria');
+  if (!cont) return;
+  cont.innerHTML = _mbGaleria.map((url, idx) => `
+    <div class="galeria-thumb">
+      <img src="${url}">
+      <button class="galeria-thumb-quitar" onclick="quitarFotoGaleriaMB(${idx})">✕</button>
+    </div>
+  `).join('');
+}
+
+function quitarFotoGaleriaMB(idx) {
+  _mbGaleria.splice(idx, 1);
+  renderPreviewGaleriaMB();
+  const lbl = document.getElementById('lbl-mb-galeria');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  if (_mbGaleria.length === 0) {
+    lbl.classList.remove('con-archivo');
+    labelDiv.textContent = 'Varias fotos';
+  } else {
+    labelDiv.innerHTML = `✓ ${_mbGaleria.length} fotos · click para agregar más`;
+  }
+}
+
+async function onSubirAvaluoPdfMB(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const lbl = document.getElementById('lbl-mb-avaluo');
+  const labelDiv = lbl.querySelector('.input-archivo-label');
+  labelDiv.textContent = 'Subiendo PDF...';
+  try {
+    const path = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.pdf`;
+    const { error } = await sb.storage.from('garantias-avaluos').upload(path, file);
+    if (error) throw error;
+    _mbAvaluoPdf = path;
+    lbl.classList.add('con-archivo');
+    labelDiv.innerHTML = '✓ PDF cargado';
+    mostrarToast('success', '✓ Avalúo subido');
+  } catch (err) {
+    mostrarToast('error', 'Error: ' + (err.message || ''));
+  }
+}
+
+async function guardarMiniBaner(opcion) {
+  if (!_mbActualId) return;
+  const entre_calles = document.getElementById('mb-entre-calles').value.trim();
+  const codigo_postal = document.getElementById('mb-cp').value.trim();
+  const tipo_inmueble = document.getElementById('mb-tipo-inmueble').value;
+  const avaluo_valor = parseFloat(document.getElementById('mb-avaluo-valor').value) || null;
+  const estudio_mercado_low = parseFloat(document.getElementById('mb-mercado-low').value) || null;
+  const estudio_mercado_high = parseFloat(document.getElementById('mb-mercado-high').value) || null;
+  const estudio_mercado_notas = document.getElementById('mb-mercado-notas').value.trim() || null;
+  const payload = {
+    foto_fachada: _mbFotoFachada,
+    galeria_fotos: _mbGaleria,
+    avaluo_valor: avaluo_valor,
+    avaluo_pdf: _mbAvaluoPdf,
+    estudio_mercado_low: estudio_mercado_low,
+    estudio_mercado_high: estudio_mercado_high,
+    estudio_mercado_notas: estudio_mercado_notas,
+    entre_calles: entre_calles || null,
+    codigo_postal: codigo_postal || null,
+    tipo_inmueble: tipo_inmueble || null,
+    google_maps_link: _mbMapsLink || null,
+    lat: _mbLat,
+    lng: _mbLng,
+    direccion_validada: !!(_mbLat && _mbLng),
+    actualizado_en: new Date().toISOString()
+  };
+  if (opcion === 'mandar_predictamen') {
+    const v = validarParaPredictamen({ ...payload });
+    if (!v.valido) {
+      mostrarToast('error', '⚠️ Faltan datos · revisa los campos marcados con *');
+      alert('No se puede mandar a pre-dictamen.\n\nFaltan:\n• ' + v.faltantes.join('\n• '));
+      return;
+    }
+    payload.estatus = 'en_pre_dictamen';
+  }
+  try {
+    const { error } = await sb.from('garantias').update(payload).eq('id', _mbActualId);
     if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
-    mostrarToast('success', `✓ ${ids.length} garantía(s) mandadas a pre-dictamen URRJ`);
-    _seleccionados.clear();
     await cargarGarantiasTodas();
+    const garantiaProcesada = _mbActualId;
+    cerrarModalMiniBaner();
+    if (_colaPredictamen.length > 0) {
+      _colaPredictamen = _colaPredictamen.filter(id => id !== garantiaProcesada);
+      _completadasEnCadena++;
+      if (_colaPredictamen.length > 0) {
+        mostrarToast('success', `✓ ${_completadasEnCadena} listas · siguen ${_colaPredictamen.length}`);
+        setTimeout(() => abrirModalMiniBaner(_colaPredictamen[0], true), 300);
+        return;
+      } else {
+        mostrarToast('success', `✓ ${_completadasEnCadena} garantía(s) procesadas en cadena`);
+        _completadasEnCadena = 0;
+        _seleccionados.clear();
+        renderVistaGarantias();
+        return;
+      }
+    }
+    if (opcion === 'mandar_predictamen') {
+      mostrarToast('success', '✓ Garantía mandada a pre-dictamen URRJ');
+    } else {
+      mostrarToast('success', '✓ Datos guardados');
+    }
     renderVistaGarantias();
-  } catch (err) { console.error(err); mostrarToast('error', 'Error inesperado'); }
+  } catch (err) {
+    mostrarToast('error', 'Error inesperado');
+  }
 }
 
 function abrirDetalleGarantia(id) {
@@ -1116,20 +1214,20 @@ function abrirDetalleGarantia(id) {
   const val = validarParaPredictamen(g);
   const checklistHtml = `
     <div class="checklist-validacion">
-      <h5>${val.valido ? '✅ Mini báner completo · lista para pre-dictamen' : '⚠️ Mini báner incompleto · NO se puede mandar a pre-dictamen'}</h5>
+      <h5>${val.valido ? '✅ Mini báner completo · lista para pre-dictamen' : '⚠️ Mini báner incompleto'}</h5>
       <div class="checklist-item ${g.foto_fachada ? 'ok' : 'falta'}"><span class="checklist-ico">${g.foto_fachada ? '✓' : '✕'}</span> Foto de fachada</div>
       <div class="checklist-item ${g.avaluo_valor ? 'ok' : 'falta'}"><span class="checklist-ico">${g.avaluo_valor ? '✓' : '✕'}</span> Valor del avalúo</div>
       <div class="checklist-item ${(g.estudio_mercado_low && g.estudio_mercado_high) ? 'ok' : 'falta'}"><span class="checklist-ico">${(g.estudio_mercado_low && g.estudio_mercado_high) ? '✓' : '✕'}</span> Estudio de mercado (rango)</div>
       <div class="checklist-item ${g.entre_calles ? 'ok' : 'falta'}"><span class="checklist-ico">${g.entre_calles ? '✓' : '✕'}</span> Entre calles</div>
       <div class="checklist-item ${g.codigo_postal ? 'ok' : 'falta'}"><span class="checklist-ico">${g.codigo_postal ? '✓' : '✕'}</span> Código postal</div>
       <div class="checklist-item ${g.tipo_inmueble ? 'ok' : 'falta'}"><span class="checklist-ico">${g.tipo_inmueble ? '✓' : '✕'}</span> Tipo de inmueble</div>
-      <div class="checklist-item ${g.direccion_validada ? 'ok' : 'falta'}"><span class="checklist-ico">${g.direccion_validada ? '✓' : '✕'}</span> Dirección validada en Maps</div>
+      <div class="checklist-item ${(g.lat && g.lng) ? 'ok' : 'falta'}"><span class="checklist-ico">${(g.lat && g.lng) ? '✓' : '✕'}</span> Link de Google Maps con coordenadas</div>
+      ${!val.valido && g.estatus === 'registrada' ? `<button class="btn-card primary" style="width:100%;margin-top:8px" onclick="cerrarDetalle(); abrirModalMiniBaner(${g.id}, false)">📝 Llenar pre-dictamen ahora</button>` : ''}
     </div>
   `;
   const galeriaHtml = (g.galeria_fotos && g.galeria_fotos.length) ? 
     `<div class="galeria-grid">${g.galeria_fotos.map(url => `<div class="galeria-thumb"><img src="${url}"></div>`).join('')}</div>` :
     '<div style="color:var(--text-tertiary); font-size:11px">Sin galería</div>';
-
   const html = `
     <div class="modal-overlay show" id="modalDetalleGar" onclick="if(event.target===this)cerrarDetalle()">
       <div class="modal-box modal-grande">
@@ -1168,6 +1266,15 @@ function abrirDetalleGarantia(id) {
             <div class="field"><label>Estado</label><div>${escapeHtml(g.estado_mx || '—')}</div></div>
             <div class="field"><label>Municipio</label><div>${escapeHtml(g.municipio || '—')}</div></div>
           </div>
+          ${g.lat && g.lng ? `
+            <div class="field">
+              <label>Coordenadas Google Maps</label>
+              <div style="background:#DCFCE7;color:#166534;padding:8px 12px;border-radius:7px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px">
+                <span>📍 <strong>${Number(g.lat).toFixed(6)}, ${Number(g.lng).toFixed(6)}</strong></span>
+                ${g.google_maps_link ? `<a href="${escapeHtml(g.google_maps_link)}" target="_blank" style="background:#0F6E56;color:white;padding:5px 12px;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600">📍 Abrir en Maps</a>` : ''}
+              </div>
+            </div>
+          ` : '<div class="field"><label>Coordenadas Google Maps</label><div style="color:#b91c1c;font-size:11px">⚠️ Sin coordenadas registradas</div></div>'}
           <div class="modal-section-title">📸 Galería</div>
           ${galeriaHtml}
           <div class="modal-section-title">💰 Valores</div>
@@ -1176,8 +1283,8 @@ function abrirDetalleGarantia(id) {
             <div class="field"><label>Valor estimado interno</label><div>${g.valor_estimado ? '$' + Number(g.valor_estimado).toLocaleString('es-MX') : '—'}</div></div>
           </div>
           <div class="field-row">
-            <div class="field"><label>Estudio mercado · BAJO</label><div>${g.estudio_mercado_low ? '$' + Number(g.estudio_mercado_low).toLocaleString('es-MX') : '—'}</div></div>
-            <div class="field"><label>Estudio mercado · ALTO</label><div>${g.estudio_mercado_high ? '$' + Number(g.estudio_mercado_high).toLocaleString('es-MX') : '—'}</div></div>
+            <div class="field"><label>Estudio · BAJO</label><div>${g.estudio_mercado_low ? '$' + Number(g.estudio_mercado_low).toLocaleString('es-MX') : '—'}</div></div>
+            <div class="field"><label>Estudio · ALTO</label><div>${g.estudio_mercado_high ? '$' + Number(g.estudio_mercado_high).toLocaleString('es-MX') : '—'}</div></div>
           </div>
           ${g.estudio_mercado_notas ? `<div class="field"><label>Notas del estudio</label><div>${escapeHtml(g.estudio_mercado_notas)}</div></div>` : ''}
           <div class="field"><label>Precio piso (confidencial)</label><div>${g.precio_piso ? '$' + Number(g.precio_piso).toLocaleString('es-MX') : '—'}</div></div>
@@ -1214,8 +1321,9 @@ async function cambiarEstatusGarantia(id) {
     if (g) {
       const v = validarParaPredictamen(g);
       if (!v.valido) {
-        mostrarToast('error', '⚠️ No se puede · faltan datos del mini báner');
-        alert('No se puede mandar a pre-dictamen.\n\nFaltan:\n• ' + v.faltantes.join('\n• '));
+        mostrarToast('error', '⚠️ Faltan datos · llena el mini báner primero');
+        cerrarDetalle();
+        abrirModalMiniBaner(id, false);
         return;
       }
     }
@@ -1227,11 +1335,11 @@ async function cambiarEstatusGarantia(id) {
     cerrarDetalle();
     await cargarGarantiasTodas();
     renderVistaGarantias();
-  } catch (err) { console.error(err); mostrarToast('error', 'Error inesperado'); }
+  } catch (err) { mostrarToast('error', 'Error inesperado'); }
 }
 
 async function archivarGarantia(id) {
-  if (!confirm('¿Archivar esta garantía? Pasará a la papelera (se puede restaurar).')) return;
+  if (!confirm('¿Archivar esta garantía?')) return;
   try {
     const { error } = await sb.from('garantias').update({ archivada: true, actualizado_en: new Date().toISOString() }).eq('id', id);
     if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
@@ -1239,19 +1347,19 @@ async function archivarGarantia(id) {
     _seleccionados.delete(id);
     await cargarGarantiasTodas();
     renderVistaGarantias();
-  } catch (err) { console.error(err); }
+  } catch (err) {}
 }
 
 async function eliminarGarantia(id) {
-  if (!confirm('¿Eliminar esta garantía? Pasará a la papelera.')) return;
+  if (!confirm('¿Eliminar esta garantía?')) return;
   try {
     const { error } = await sb.from('garantias').update({ eliminada: true, actualizado_en: new Date().toISOString() }).eq('id', id);
     if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
-    mostrarToast('success', '✓ Eliminada (movida a papelera)');
+    mostrarToast('success', '✓ Eliminada');
     _seleccionados.delete(id);
     await cargarGarantiasTodas();
     renderVistaGarantias();
-  } catch (err) { console.error(err); }
+  } catch (err) {}
 }
 
 function renderPapelera() {
@@ -1267,7 +1375,7 @@ function renderPapelera() {
           <div class="cyg-section-ico">🗑️</div>
           <div>
             <h3>Papelera y duplicados</h3>
-            <p>Restaura, elimina permanentemente o resuelve duplicados detectados automáticamente.</p>
+            <p>Restaura, elimina permanentemente o resuelve duplicados.</p>
           </div>
         </div>
       </div>
@@ -1282,10 +1390,7 @@ function renderPapelera() {
   renderPapelerasubtab();
 }
 
-function cambiarTabPap(sub) {
-  _tabPap = sub;
-  renderPapelera();
-}
+function cambiarTabPap(sub) { _tabPap = sub; renderPapelera(); }
 
 function renderPapelerasubtab() {
   const cont = document.getElementById('pap-contenido');
@@ -1359,18 +1464,16 @@ async function restaurarGarantia(id, tipo) {
     mostrarToast('success', '✓ Restaurada');
     await cargarGarantiasTodas();
     renderPapelera();
-  } catch (err) { console.error(err); }
+  } catch (err) {}
 }
 
 async function eliminarPermanente(id) {
-  if (!confirm('⚠️ ¿Borrar PERMANENTEMENTE esta garantía?\n\nEsto NO SE PUEDE DESHACER.')) return;
+  if (!confirm('⚠️ ¿Borrar PERMANENTEMENTE? NO SE PUEDE DESHACER.')) return;
   try {
     const { error } = await sb.from('garantias').delete().eq('id', id);
     if (error) { mostrarToast('error', 'Error: ' + error.message); return; }
     mostrarToast('success', '✓ Borrada permanentemente');
     await cargarGarantiasTodas();
     renderPapelera();
-  } catch (err) { console.error(err); }
+  } catch (err) {}
 }
-
-/* ═══ FIN siga-carteras.js ═══ */
