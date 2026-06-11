@@ -61,11 +61,7 @@ body {
   z-index: 10;
 }
 
-.app-header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
+.app-header-left { display: flex; align-items: center; gap: 14px; }
 
 .logo-link {
   display: flex;
@@ -76,12 +72,9 @@ body {
   padding: 4px 8px 4px 4px;
   border-radius: 9px;
   transition: background 0.2s;
-  position: relative;
 }
 
-.logo-link:hover {
-  background: rgba(255,255,255,0.10);
-}
+.logo-link:hover { background: rgba(255,255,255,0.10); }
 
 .app-logo {
   width: 40px;
@@ -108,15 +101,9 @@ body {
   gap: 4px;
 }
 
-.logo-menu-label::before {
-  content: "←";
-  font-size: 11px;
-}
+.logo-menu-label::before { content: "←"; font-size: 11px; }
 
-.app-header h1 {
-  font-size: 16px;
-  font-weight: 500;
-}
+.app-header h1 { font-size: 16px; font-weight: 500; }
 
 .app-header .subtitulo {
   font-size: 10.5px;
@@ -126,33 +113,12 @@ body {
   margin-top: 1px;
 }
 
-.divider-v {
-  width: 1px;
-  height: 32px;
-  background: rgba(255,255,255,0.2);
-  margin: 0 4px;
-}
+.divider-v { width: 1px; height: 32px; background: rgba(255,255,255,0.2); margin: 0 4px; }
 
-.user-box {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-info {
-  text-align: right;
-}
-
-.user-info .nombre {
-  font-size: 12.5px;
-  font-weight: 500;
-}
-
-.user-info .rol {
-  font-size: 10px;
-  color: #B5D4F4;
-  margin-top: 1px;
-}
+.user-box { display: flex; align-items: center; gap: 12px; }
+.user-info { text-align: right; }
+.user-info .nombre { font-size: 12.5px; font-weight: 500; }
+.user-info .rol { font-size: 10px; color: #B5D4F4; margin-top: 1px; }
 
 .btn-logout {
   background: rgba(255,255,255,0.12);
@@ -166,25 +132,11 @@ body {
   cursor: pointer;
 }
 
-.btn-logout:hover {
-  background: rgba(255,255,255,0.22);
-}
+.btn-logout:hover { background: rgba(255,255,255,0.22); }
 
-.app-layout {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  min-height: calc(100vh - 64px);
-}
-
-.sidebar {
-  background: var(--bg-tint);
-  border-right: 0.5px solid var(--border);
-  padding: 1rem 0;
-}
-
-.sidebar-section {
-  margin-bottom: 1.25rem;
-}
+.app-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100vh - 64px); }
+.sidebar { background: var(--bg-tint); border-right: 0.5px solid var(--border); padding: 1rem 0; }
+.sidebar-section { margin-bottom: 1.25rem; }
 
 .sidebar-title {
   font-size: 10px;
@@ -209,11 +161,7 @@ body {
   transition: background 0.15s, color 0.15s;
 }
 
-.sidebar-item:hover {
-  background: rgba(15, 110, 86, 0.05);
-  color: var(--diipa-teal);
-}
-
+.sidebar-item:hover { background: rgba(15, 110, 86, 0.05); color: var(--diipa-teal); }
 .sidebar-item.active {
   background: var(--diipa-teal-bg);
   color: var(--diipa-teal-oscuro);
@@ -221,17 +169,8 @@ body {
   font-weight: 500;
 }
 
-.sidebar-icon {
-  width: 18px;
-  text-align: center;
-  font-size: 14px;
-}
-
-.main-area {
-  padding: 1.5rem 1.75rem;
-  background: var(--bg-page);
-  overflow-y: auto;
-}
+.sidebar-icon { width: 18px; text-align: center; font-size: 14px; }
+.main-area { padding: 1.5rem 1.75rem; background: var(--bg-page); overflow-y: auto; }
 
 .section-header {
   background: var(--bg-card);
@@ -246,12 +185,7 @@ body {
   gap: 1rem;
 }
 
-.section-header-info {
-  display: flex;
-  gap: 14px;
-  flex: 1;
-  min-width: 0;
-}
+.section-header-info { display: flex; gap: 14px; flex: 1; min-width: 0; }
 
 .section-icon {
   width: 42px;
@@ -266,18 +200,8 @@ body {
   flex-shrink: 0;
 }
 
-.section-header h2 {
-  font-size: 17px;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 3px;
-}
-
-.section-header p {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
+.section-header h2 { font-size: 17px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; }
+.section-header p { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
 
 .section-badge {
   display: inline-block;
@@ -289,86 +213,299 @@ body {
   font-weight: 500;
 }
 
-.placeholder {
+.acceso-restringido {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: 14px;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.acceso-restringido .candado { font-size: 56px; margin-bottom: 12px; }
+.acceso-restringido h3 { font-size: 18px; font-weight: 500; color: var(--diipa-azul-oscuro); margin-bottom: 8px; }
+.acceso-restringido p { font-size: 13px; color: var(--text-secondary); max-width: 460px; margin: 0 auto; }
+
+.acceso-restringido .email-actual {
+  display: inline-block;
+  background: var(--bg-tint);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  margin-top: 12px;
+  color: var(--text-tertiary);
+}
+
+.kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.kpi-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--diipa-azul-bg);
+  color: var(--diipa-azul);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.kpi-icon.teal { background: var(--diipa-teal-bg); color: var(--diipa-teal); }
+.kpi-icon.gray { background: #F1F5F9; color: #64748B; }
+.kpi-icon.gold { background: #FEF9C3; color: #854D0E; }
+
+.kpi-info { min-width: 0; }
+.kpi-info .num { font-size: 21px; font-weight: 600; color: var(--text-primary); font-family: 'DM Mono', monospace; line-height: 1.1; }
+.kpi-info .label { font-size: 10.5px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+.toolbar {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  background: var(--bg-tint);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 0 12px;
+}
+
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 8px 6px;
+  font-size: 12.5px;
+  font-family: 'Sora', sans-serif;
+  color: var(--text-primary);
+}
+
+.search-box .ico { font-size: 13px; color: var(--text-tertiary); }
+.filter-tabs { display: flex; gap: 4px; background: var(--bg-tint); border-radius: 8px; padding: 3px; }
+
+.filter-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-family: 'Sora', sans-serif;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.filter-btn:hover { color: var(--diipa-azul); }
+.filter-btn.active { background: var(--bg-card); color: var(--diipa-azul); box-shadow: var(--shadow-sm); }
+
+.btn-nueva {
+  background: var(--diipa-azul);
+  color: white;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: 'Sora', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-nueva:hover { background: var(--diipa-azul-medio); }
+
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 14px; }
+
+.admin-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-card:hover { box-shadow: var(--shadow-md); }
+.admin-card-hdr { display: flex; align-items: flex-start; gap: 10px; }
+
+.admin-card-ico {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: var(--diipa-azul-bg);
+  color: var(--diipa-azul);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.admin-card-title { flex: 1; min-width: 0; }
+.admin-card-folio { font-size: 10px; color: var(--text-tertiary); font-family: 'DM Mono', monospace; letter-spacing: 0.5px; margin-bottom: 1px; }
+.admin-card-name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.estatus-badge { display: inline-block; font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.3px; text-transform: uppercase; }
+.estatus-badge.activa { background: var(--diipa-teal-bg); color: var(--diipa-teal-oscuro); }
+.estatus-badge.inactiva { background: #F1F5F9; color: #64748B; }
+
+.admin-contacto {
+  background: var(--bg-tint);
+  border-radius: 7px;
+  padding: 9px 11px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 44px;
+}
+
+.admin-contacto.sin-contacto { background: #FEF3C7; color: #92400e; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 500; }
+.admin-contacto .row { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+.admin-contacto .row span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+
+.admin-tipos { font-size: 10.5px; color: var(--text-tertiary); background: var(--diipa-azul-bg); padding: 6px 10px; border-radius: 6px; }
+.admin-tipos strong { color: var(--diipa-azul); font-weight: 600; }
+.admin-actions { display: flex; gap: 6px; }
+
+.btn-card { flex: 1; border: none; padding: 8px 10px; border-radius: 7px; font-size: 11px; font-family: 'Sora', sans-serif; font-weight: 600; cursor: pointer; }
+.btn-card.primary { background: var(--diipa-azul); color: white; }
+.btn-card.secondary { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-card.secondary:hover { background: var(--bg-tint); border-color: var(--diipa-azul-claro); color: var(--diipa-azul); }
+
+.empty-state {
   background: var(--bg-card);
   border: 0.5px dashed var(--border);
   border-radius: 12px;
   padding: 3rem 2rem;
   text-align: center;
   color: var(--text-tertiary);
+  grid-column: 1 / -1;
 }
 
-.placeholder .icon-big {
-  font-size: 40px;
-  margin-bottom: 12px;
-  opacity: 0.5;
+.empty-state .icon-big { font-size: 42px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state h3 { font-size: 15px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+.empty-state p { font-size: 12px; color: var(--text-tertiary); max-width: 420px; margin: 0 auto 14px; }
+.empty-state .btn-empty { background: var(--diipa-azul); color: white; border: none; padding: 9px 18px; border-radius: 8px; font-size: 12px; font-family: 'Sora', sans-serif; font-weight: 600; cursor: pointer; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(4,44,83,0.42); display: none; align-items: center; justify-content: center; z-index: 50; padding: 1rem; }
+.modal-overlay.show { display: flex; }
+
+.modal-box {
+  background: var(--bg-card);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(4,44,83,0.25);
 }
 
-.placeholder h3 {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.placeholder p {
-  font-size: 12.5px;
-  color: var(--text-tertiary);
-  max-width: 480px;
-  margin: 0 auto;
-  line-height: 1.6;
-}
-
-.placeholder .step-list {
-  display: inline-block;
-  text-align: left;
-  margin-top: 16px;
-  font-size: 11.5px;
-  background: var(--bg-tint);
-  border-radius: 8px;
-  padding: 10px 16px;
-  color: var(--text-secondary);
-  font-family: 'DM Mono', monospace;
-}
-
-.loading-screen {
-  position: fixed;
-  inset: 0;
-  background: var(--bg-page);
+.modal-hdr {
+  background: linear-gradient(135deg, var(--diipa-azul) 0%, var(--diipa-azul-oscuro) 100%);
+  color: white;
+  padding: 14px 20px;
+  border-radius: 14px 14px 0 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  z-index: 100;
+  justify-content: space-between;
 }
 
-.loader {
-  width: 42px;
-  height: 42px;
-  border: 3px solid var(--border-light);
-  border-top-color: var(--diipa-azul);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.modal-hdr-title { font-size: 14px; font-weight: 500; }
+.modal-hdr-x { background: rgba(255,255,255,0.15); border: none; color: white; width: 28px; height: 28px; border-radius: 7px; font-size: 16px; cursor: pointer; }
+.modal-hdr-x:hover { background: rgba(255,255,255,0.28); }
+.modal-body { padding: 20px; }
+
+.modal-section-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--diipa-azul);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 20px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 0.5px solid var(--border-light);
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.modal-section-title:first-child { margin-top: 0; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
+
+.field input, .field textarea, .field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: 'Sora', sans-serif;
+  background: var(--bg-tint);
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
 }
 
-.loading-screen p {
-  margin-top: 14px;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-}
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--diipa-azul); background: var(--bg-card); }
+.field input[readonly] { background: #F1F5F9; color: var(--text-tertiary); cursor: not-allowed; font-family: 'DM Mono', monospace; font-weight: 600; }
+
+.tipos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--bg-tint); border-radius: 8px; padding: 10px; }
+.tipo-check { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-secondary); padding: 4px 6px; border-radius: 5px; cursor: pointer; }
+.tipo-check:hover { background: var(--bg-card); }
+.tipo-check input { width: 14px; height: 14px; cursor: pointer; padding: 0; }
+
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 0.5px solid var(--border-light); }
+.btn-modal { padding: 9px 20px; border-radius: 8px; font-size: 12px; font-family: 'Sora', sans-serif; font-weight: 500; cursor: pointer; border: none; }
+.btn-modal.cancel { background: var(--bg-tint); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-modal.save { background: var(--diipa-azul); color: white; }
+.btn-modal.save:hover { background: var(--diipa-azul-medio); }
+.btn-modal.save:disabled { background: var(--border); cursor: not-allowed; }
+
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--text-primary); color: white; padding: 12px 18px; border-radius: 9px; font-size: 12.5px; box-shadow: 0 8px 24px rgba(4,44,83,0.3); z-index: 100; display: none; align-items: center; gap: 8px; max-width: 380px; }
+.toast.show { display: flex; }
+.toast.success { background: var(--diipa-teal); }
+.toast.error { background: #b91c1c; }
+
+.loading-screen { position: fixed; inset: 0; background: var(--bg-page); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+.loader { width: 42px; height: 42px; border: 3px solid var(--border-light); border-top-color: var(--diipa-azul); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-screen p { margin-top: 14px; color: var(--text-secondary); font-size: 12.5px; }
+
+.placeholder { background: var(--bg-card); border: 0.5px dashed var(--border); border-radius: 12px; padding: 3rem 2rem; text-align: center; color: var(--text-tertiary); }
+.placeholder .icon-big { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+.placeholder h3 { font-size: 16px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+.placeholder p { font-size: 12.5px; color: var(--text-tertiary); max-width: 480px; margin: 0 auto; }
 
 @media (max-width: 800px) {
-  .app-layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    border-right: none;
-    border-bottom: 0.5px solid var(--border);
-  }
+  .app-layout { grid-template-columns: 1fr; }
+  .sidebar { border-right: none; border-bottom: 0.5px solid var(--border); }
   .app-header { padding: 12px 14px; }
   .app-header h1 { font-size: 13px; }
   .subtitulo { display: none; }
@@ -377,6 +514,11 @@ body {
   .main-area { padding: 1rem 1.25rem; }
   .section-header { flex-direction: column; }
   .logo-menu-label { display: none; }
+  .kpis-grid { grid-template-columns: repeat(2, 1fr); }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .search-box { width: 100%; }
+  .field-row { grid-template-columns: 1fr; }
+  .tipos-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -393,9 +535,7 @@ body {
     <div class="app-header-left">
       <a href="bienvenida.html" class="logo-link" title="Volver al menú principal">
         <div class="app-logo">D</div>
-        <div>
-          <div class="logo-menu-label">Menú</div>
-        </div>
+        <div><div class="logo-menu-label">Menú</div></div>
       </a>
       <div class="divider-v"></div>
       <div>
@@ -417,26 +557,10 @@ body {
     <aside class="sidebar">
       <div class="sidebar-section">
         <div class="sidebar-title">URRJ · Operaciones</div>
-
-        <a class="sidebar-item active" data-modulo="administradoras">
-          <span class="sidebar-icon">🏦</span>
-          Administradoras
-        </a>
-
-        <a class="sidebar-item" data-modulo="carteras">
-          <span class="sidebar-icon">📂</span>
-          Carteras y Garantías
-        </a>
-
-        <a class="sidebar-item" data-modulo="urrj">
-          <span class="sidebar-icon">⚖️</span>
-          Pre-dictamen URRJ
-        </a>
-
-        <a class="sidebar-item" data-modulo="catalogo">
-          <span class="sidebar-icon">🏘️</span>
-          Catálogo publicado
-        </a>
+        <a class="sidebar-item active" data-modulo="administradoras"><span class="sidebar-icon">🏦</span>Administradoras</a>
+        <a class="sidebar-item" data-modulo="carteras"><span class="sidebar-icon">📂</span>Carteras y Garantías</a>
+        <a class="sidebar-item" data-modulo="urrj"><span class="sidebar-icon">⚖️</span>Pre-dictamen URRJ</a>
+        <a class="sidebar-item" data-modulo="catalogo"><span class="sidebar-icon">🏘️</span>Catálogo publicado</a>
       </div>
     </aside>
 
@@ -444,72 +568,158 @@ body {
 
       <div class="section-header">
         <div class="section-header-info">
-          <div class="section-icon">🏦</div>
+          <div class="section-icon" id="moduloIcono">🏦</div>
           <div>
             <h2 id="moduloTitulo">Administradoras</h2>
             <p id="moduloDescripcion">Catálogo de instituciones con folio automático · datos protegidos · vinculación con carteras</p>
-            <span class="section-badge">Acceso solo Dirección</span>
+            <span class="section-badge" id="moduloBadge">Acceso solo Dirección</span>
           </div>
         </div>
       </div>
 
-      <div class="placeholder">
-        <div class="icon-big">🚧</div>
-        <h3>Módulo en preparación</h3>
-        <p>Esta es la cáscara visual del módulo. En la siguiente fase vamos a extraer el código real desde el sistema actual e integrarlo aquí.</p>
+      <div id="vista-administradoras">
+        <div class="acceso-restringido" id="accesoRestringido" style="display:none">
+          <div class="candado">🔒</div>
+          <h3>Acceso restringido</h3>
+          <p>Este módulo está reservado para la <strong>Dirección General</strong> y el <strong>Super Admin</strong>. Si necesitas acceso, contacta a la directora.</p>
+          <div class="email-actual">Tu sesión: <span id="emailMostrado">—</span></div>
+        </div>
 
-        <div class="step-list">
-          ✓ Fase 3.1 · Cáscara visual (estás aquí)<br>
-          ⏳ Fase 3.2 · Extraer Administradoras<br>
-          ⏳ Fase 3.3 · Extraer Carteras y Garantías<br>
-          ⏳ Fase 3.4 · Extraer Pre-dictamen URRJ<br>
-          ⏳ Fase 3.5 · Extraer Catálogo
+        <div id="contenidoAutorizado" style="display:none">
+          <div class="kpis-grid">
+            <div class="kpi-card"><div class="kpi-icon">🏦</div><div class="kpi-info"><div class="num" id="kpi-total">0</div><div class="label">Total</div></div></div>
+            <div class="kpi-card"><div class="kpi-icon teal">✓</div><div class="kpi-info"><div class="num" id="kpi-activas">0</div><div class="label">Activas</div></div></div>
+            <div class="kpi-card"><div class="kpi-icon gray">⏸</div><div class="kpi-info"><div class="num" id="kpi-inactivas">0</div><div class="label">Inactivas</div></div></div>
+            <div class="kpi-card"><div class="kpi-icon gold">📋</div><div class="kpi-info"><div class="num" id="kpi-tipos">0</div><div class="label">Tipos garantía</div></div></div>
+          </div>
+
+          <div class="toolbar">
+            <div class="search-box">
+              <span class="ico">🔍</span>
+              <input id="adminBuscar" type="text" placeholder="Buscar por nombre, folio, contacto..." oninput="filtrarAdmins()">
+            </div>
+            <div class="filter-tabs">
+              <button class="filter-btn active" data-est="" onclick="filtrarEstatus('')">Todas</button>
+              <button class="filter-btn" data-est="activa" onclick="filtrarEstatus('activa')">Activas</button>
+              <button class="filter-btn" data-est="inactiva" onclick="filtrarEstatus('inactiva')">Inactivas</button>
+            </div>
+            <button class="btn-nueva" onclick="abrirModalNueva()">+ Nueva Administradora</button>
+          </div>
+
+          <div class="admin-grid" id="adminGrid"></div>
+        </div>
+      </div>
+
+      <div id="vista-otros" style="display:none">
+        <div class="placeholder">
+          <div class="icon-big">🚧</div>
+          <h3 id="otrosTitulo">Módulo en preparación</h3>
+          <p id="otrosDesc">Esta vista se construirá en las siguientes fases.</p>
         </div>
       </div>
 
     </main>
-
   </div>
-
 </div>
+
+<div class="modal-overlay" id="modalAdmin">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title" id="modalTitulo">Nueva Administradora</div>
+      <button class="modal-hdr-x" onclick="cerrarModalAdmin()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">🏦 Datos generales</div>
+      <div class="field-row">
+        <div class="field"><label>Folio</label><input type="text" id="f-folio" readonly placeholder="ADM-001"></div>
+        <div class="field"><label>Estatus</label><select id="f-estatus"><option value="activa">Activa</option><option value="inactiva">Inactiva</option></select></div>
+      </div>
+      <div class="field"><label>Nombre / Razón social *</label><input type="text" id="f-nombre" placeholder="Ej. PENDULUM, TERTIUS..."></div>
+
+      <div class="modal-section-title">👤 Contacto</div>
+      <div class="field-row">
+        <div class="field"><label>Persona de contacto</label><input type="text" id="f-cnombre" placeholder="Nombre completo"></div>
+        <div class="field"><label>Cargo</label><input type="text" id="f-ccargo" placeholder="Gerente, Apoderado..."></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Teléfono</label><input type="tel" id="f-ctel" placeholder="+52 55 1234 5678"></div>
+        <div class="field"><label>Email</label><input type="email" id="f-cemail" placeholder="contacto@institucion.mx"></div>
+      </div>
+      <div class="field"><label>Domicilio</label><input type="text" id="f-domicilio" placeholder="Calle, número, colonia, ciudad, estado"></div>
+
+      <div class="modal-section-title">🏛️ Datos legales</div>
+      <div class="field"><label>RFC</label><input type="text" id="f-rfc" placeholder="XXXX000000XXX" maxlength="13"></div>
+      <div class="field"><label>Notas internas</label><textarea id="f-notas" rows="3" placeholder="Condiciones del convenio, observaciones..."></textarea></div>
+
+      <div class="modal-section-title">📋 Tipos de garantías que maneja</div>
+      <div class="tipos-grid" id="tiposGrid"></div>
+
+      <div class="modal-actions">
+        <button class="btn-modal cancel" onclick="cerrarModalAdmin()">Cancelar</button>
+        <button class="btn-modal save" id="btnGuardar" onclick="guardarAdmin()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span></div>
 
 <script>
 const SUPABASE_URL = 'https://xuaqrzjgkuvfvnttvakr.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_-2ZZ7pk9pKDoBPXhuLIhEA_ldWsmBri';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const EMAILS_AUTORIZADOS = [
+  'erikapaola@diipadesarrollos.com',
+  'edilsoneduar5@gmail.com'
+];
+
+const TIPOS_GARANTIAS = [
+  { id: 'contingencia',      label: 'Garantías con contingencia' },
+  { id: 'escrituras',        label: 'Escrituras directas' },
+  { id: 'embargo_mercantil', label: 'Embargos mercantiles' },
+  { id: 'posesion',          label: 'Posesión' },
+  { id: 'cesion_hipot',      label: 'Cesión de derechos hipotecarios' },
+  { id: 'adjud_judicial',    label: 'Adjudicaciones judiciales' },
+  { id: 'adjud_notarial',    label: 'Adjudicaciones notariales' },
+  { id: 'cartera_vencida',   label: 'Cartera vencida hipotecaria' },
+  { id: 'juicio_hipot',      label: 'Juicio Especial Hipotecario' },
+  { id: 'juicio_mercantil',  label: 'Juicio Ejecutivo Mercantil' },
+  { id: 'compraventa_rd',    label: 'Compraventa con reserva de dominio' },
+  { id: 'bienes_cont',       label: 'Bienes con contingencia jurídica' }
+];
+
+let _userEmail = null;
+let _esAutorizado = false;
+let _admins = [];
+let _filtroEstatus = '';
+let _busqueda = '';
+let _editandoId = null;
+
 const MODULOS = {
-  administradoras: {
-    titulo: 'Administradoras',
-    descripcion: 'Catálogo de instituciones con folio automático · datos protegidos · vinculación con carteras',
-    icono: '🏦'
-  },
-  carteras: {
-    titulo: 'Carteras y Garantías',
-    descripcion: 'Gestión integral por origen · ADM · PRO · EXT · garantías vinculadas',
-    icono: '📂'
-  },
-  urrj: {
-    titulo: 'Pre-dictamen URRJ',
-    descripcion: 'Auditor Legal MX · 4 hitos · firma verificada · resultados',
-    icono: '⚖️'
-  },
-  catalogo: {
-    titulo: 'Catálogo publicado',
-    descripcion: 'Activos aprobados desde URRJ y publicados para venta',
-    icono: '🏘️'
-  }
+  administradoras: { titulo: 'Administradoras', descripcion: 'Catálogo de instituciones con folio automático · datos protegidos · vinculación con carteras', icono: '🏦', badge: 'Acceso solo Dirección' },
+  carteras: { titulo: 'Carteras y Garantías', descripcion: 'Gestión integral por origen · ADM · PRO · EXT · garantías vinculadas', icono: '📂', badge: 'Próxima fase' },
+  urrj: { titulo: 'Pre-dictamen URRJ', descripcion: 'Auditor Legal MX · 4 hitos · firma verificada · resultados', icono: '⚖️', badge: 'Próxima fase' },
+  catalogo: { titulo: 'Catálogo publicado', descripcion: 'Activos aprobados desde URRJ y publicados para venta', icono: '🏘️', badge: 'Próxima fase' }
 };
 
 async function verificarSesion() {
   try {
     const { data: { session }, error } = await sb.auth.getSession();
-    if (error || !session) {
-      window.location.href = 'login.html';
-      return;
-    }
+    if (error || !session) { window.location.href = 'login.html'; return; }
+    _userEmail = session.user.email;
+    _esAutorizado = EMAILS_AUTORIZADOS.includes(_userEmail);
+
     mostrarUsuario(session.user);
+    pintarTiposEnModal();
     ocultarLoading();
+
+    if (_esAutorizado) {
+      mostrarContenidoAutorizado();
+      await cargarAdmins();
+    } else {
+      mostrarAccesoRestringido();
+    }
   } catch (err) {
     console.error('Error sesión:', err);
     window.location.href = 'login.html';
@@ -517,44 +727,220 @@ async function verificarSesion() {
 }
 
 function mostrarUsuario(user) {
-  const email = user.email || 'usuario@diipadesarrollos.com';
-  const nombre = email.split('@')[0].replace(/\./g, ' ').replace(/_/g, ' ');
-  const nombreFormateado = nombre
-    .split(' ')
-    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ');
-
-  document.getElementById('userName').textContent = nombreFormateado;
+  const email = user.email || 'usuario';
+  const nombre = email.split('@')[0].replace(/\./g, ' ').replace(/_/g, ' ').split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  document.getElementById('userName').textContent = nombre;
   document.getElementById('userRol').textContent = email;
+}
+
+function mostrarAccesoRestringido() {
+  document.getElementById('accesoRestringido').style.display = 'block';
+  document.getElementById('contenidoAutorizado').style.display = 'none';
+  document.getElementById('emailMostrado').textContent = _userEmail || '—';
+}
+
+function mostrarContenidoAutorizado() {
+  document.getElementById('accesoRestringido').style.display = 'none';
+  document.getElementById('contenidoAutorizado').style.display = 'block';
+}
+
+function pintarTiposEnModal() {
+  const cont = document.getElementById('tiposGrid');
+  cont.innerHTML = TIPOS_GARANTIAS.map(t => `<label class="tipo-check"><input type="checkbox" value="${t.id}" data-tipo><span>${t.label}</span></label>`).join('');
+}
+
+async function cargarAdmins() {
+  try {
+    const { data, error } = await sb.from('administradoras').select('*').order('folio', { ascending: true });
+    if (error) { console.error('Error:', error); mostrarToast('error', 'No se pudieron cargar'); return; }
+    _admins = data || [];
+    renderTodo();
+  } catch (err) { console.error(err); mostrarToast('error', 'Error inesperado'); }
+}
+
+function renderTodo() { renderKpis(); renderTarjetas(); }
+
+function renderKpis() {
+  const total = _admins.length;
+  const activas = _admins.filter(a => a.estatus === 'activa').length;
+  const inactivas = _admins.filter(a => a.estatus === 'inactiva').length;
+  const tiposUnicos = new Set();
+  _admins.forEach(a => (a.tipos_garantias || []).forEach(t => tiposUnicos.add(t)));
+  document.getElementById('kpi-total').textContent = total;
+  document.getElementById('kpi-activas').textContent = activas;
+  document.getElementById('kpi-inactivas').textContent = inactivas;
+  document.getElementById('kpi-tipos').textContent = tiposUnicos.size;
+}
+
+function renderTarjetas() {
+  const grid = document.getElementById('adminGrid');
+  if (!grid) return;
+  let lista = _admins;
+  if (_filtroEstatus) lista = lista.filter(a => a.estatus === _filtroEstatus);
+  if (_busqueda) {
+    const q = _busqueda.toLowerCase();
+    lista = lista.filter(a => (a.nombre || '').toLowerCase().includes(q) || (a.folio || '').toLowerCase().includes(q) || (a.contacto_nombre || '').toLowerCase().includes(q) || (a.contacto_email || '').toLowerCase().includes(q));
+  }
+  if (!lista.length) {
+    if (_admins.length === 0) {
+      grid.innerHTML = `<div class="empty-state"><div class="icon-big">🏦</div><h3>Aún no hay administradoras</h3><p>Crea la primera administradora. Cada una tendrá folio automático (ADM-001, ADM-002...).</p><button class="btn-empty" onclick="abrirModalNueva()">+ Crear primera administradora</button></div>`;
+    } else {
+      grid.innerHTML = `<div class="empty-state"><div class="icon-big">🔍</div><h3>Sin resultados</h3><p>No se encontraron administradoras con esa búsqueda.</p></div>`;
+    }
+    return;
+  }
+  grid.innerHTML = lista.map(a => construirTarjeta(a)).join('');
+}
+
+function construirTarjeta(a) {
+  const tieneCont = !!(a.contacto_email || a.contacto_nombre || a.contacto_telefono);
+  let contactoHtml = '';
+  if (tieneCont) {
+    contactoHtml = `<div class="admin-contacto">${a.contacto_nombre ? `<div class="row"><span class="ico">👤</span><span>${escapeHtml(a.contacto_nombre)}</span></div>` : ''}${a.contacto_email ? `<div class="row"><span class="ico">✉️</span><span>${escapeHtml(a.contacto_email)}</span></div>` : ''}${a.contacto_telefono ? `<div class="row"><span class="ico">☎️</span><span>${escapeHtml(a.contacto_telefono)}</span></div>` : ''}</div>`;
+  } else {
+    contactoHtml = `<div class="admin-contacto sin-contacto">⚠️ Sin contacto registrado</div>`;
+  }
+  const nTipos = (a.tipos_garantias || []).length;
+  const tiposHtml = `<div class="admin-tipos">📋 <strong>${nTipos}</strong> tipo${nTipos!==1?'s':''} de garantía</div>`;
+  return `<div class="admin-card"><div class="admin-card-hdr"><div class="admin-card-ico">🏦</div><div class="admin-card-title"><div class="admin-card-folio">${escapeHtml(a.folio || '—')}</div><div class="admin-card-name">${escapeHtml(a.nombre)}</div><span class="estatus-badge ${a.estatus || 'activa'}">${a.estatus === 'inactiva' ? '⏸ Inactiva' : '✓ Activa'}</span></div></div>${contactoHtml}${tiposHtml}<div class="admin-actions"><button class="btn-card secondary" onclick="abrirModalEditar(${a.id})">✏️ Editar</button></div></div>`;
+}
+
+function filtrarAdmins() { _busqueda = document.getElementById('adminBuscar').value || ''; renderTarjetas(); }
+
+function filtrarEstatus(est) {
+  _filtroEstatus = est;
+  document.querySelectorAll('.filter-btn').forEach(b => { b.classList.toggle('active', b.dataset.est === est); });
+  renderTarjetas();
+}
+
+async function abrirModalNueva() {
+  _editandoId = null;
+  document.getElementById('modalTitulo').textContent = 'Nueva Administradora';
+  const folio = await generarFolioAuto();
+  document.getElementById('f-folio').value = folio;
+  document.getElementById('f-estatus').value = 'activa';
+  document.getElementById('f-nombre').value = '';
+  document.getElementById('f-cnombre').value = '';
+  document.getElementById('f-ccargo').value = '';
+  document.getElementById('f-ctel').value = '';
+  document.getElementById('f-cemail').value = '';
+  document.getElementById('f-domicilio').value = '';
+  document.getElementById('f-rfc').value = '';
+  document.getElementById('f-notas').value = '';
+  document.querySelectorAll('[data-tipo]').forEach(cb => cb.checked = false);
+  document.getElementById('modalAdmin').classList.add('show');
+}
+
+function abrirModalEditar(id) {
+  const a = _admins.find(x => x.id === id);
+  if (!a) return;
+  _editandoId = id;
+  document.getElementById('modalTitulo').textContent = 'Editar · ' + (a.folio || '');
+  document.getElementById('f-folio').value = a.folio || '';
+  document.getElementById('f-estatus').value = a.estatus || 'activa';
+  document.getElementById('f-nombre').value = a.nombre || '';
+  document.getElementById('f-cnombre').value = a.contacto_nombre || '';
+  document.getElementById('f-ccargo').value = a.contacto_cargo || '';
+  document.getElementById('f-ctel').value = a.contacto_telefono || '';
+  document.getElementById('f-cemail').value = a.contacto_email || '';
+  document.getElementById('f-domicilio').value = a.domicilio || '';
+  document.getElementById('f-rfc').value = a.rfc || '';
+  document.getElementById('f-notas').value = a.notas_internas || '';
+  const tipos = a.tipos_garantias || [];
+  document.querySelectorAll('[data-tipo]').forEach(cb => { cb.checked = tipos.includes(cb.value); });
+  document.getElementById('modalAdmin').classList.add('show');
+}
+
+function cerrarModalAdmin() { document.getElementById('modalAdmin').classList.remove('show'); _editandoId = null; }
+
+async function generarFolioAuto() {
+  try {
+    const { data, error } = await sb.from('administradoras').select('folio').ilike('folio', 'ADM-%').order('folio', { ascending: false }).limit(1);
+    if (error || !data || !data.length) return 'ADM-001';
+    const ultimo = data[0].folio || '';
+    const num = parseInt(ultimo.split('-')[1]) || 0;
+    return 'ADM-' + String(num + 1).padStart(3, '0');
+  } catch (err) { return 'ADM-001'; }
+}
+
+async function guardarAdmin() {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  if (!nombre) { mostrarToast('error', 'El nombre es obligatorio'); return; }
+  const tiposSel = Array.from(document.querySelectorAll('[data-tipo]:checked')).map(cb => cb.value);
+  const payload = {
+    folio: document.getElementById('f-folio').value.trim(),
+    nombre: nombre,
+    estatus: document.getElementById('f-estatus').value,
+    contacto_nombre: document.getElementById('f-cnombre').value.trim() || null,
+    contacto_cargo: document.getElementById('f-ccargo').value.trim() || null,
+    contacto_telefono: document.getElementById('f-ctel').value.trim() || null,
+    contacto_email: document.getElementById('f-cemail').value.trim() || null,
+    domicilio: document.getElementById('f-domicilio').value.trim() || null,
+    rfc: document.getElementById('f-rfc').value.trim().toUpperCase() || null,
+    notas_internas: document.getElementById('f-notas').value.trim() || null,
+    tipos_garantias: tiposSel,
+    actualizado_en: new Date().toISOString()
+  };
+  const btn = document.getElementById('btnGuardar');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  try {
+    let res;
+    if (_editandoId) {
+      res = await sb.from('administradoras').update(payload).eq('id', _editandoId);
+    } else {
+      payload.creado_por = _userEmail;
+      payload.creado_en = new Date().toISOString();
+      res = await sb.from('administradoras').insert(payload);
+    }
+    if (res.error) { console.error(res.error); mostrarToast('error', 'Error: ' + res.error.message); return; }
+    cerrarModalAdmin();
+    mostrarToast('success', _editandoId ? '✓ Actualizada' : '✓ Creada');
+    await cargarAdmins();
+  } catch (err) { console.error(err); mostrarToast('error', 'Error inesperado'); }
+  finally { btn.disabled = false; btn.textContent = 'Guardar'; }
 }
 
 function cambiarModulo(modulo) {
   const m = MODULOS[modulo];
   if (!m) return;
-
   document.getElementById('moduloTitulo').textContent = m.titulo;
   document.getElementById('moduloDescripcion').textContent = m.descripcion;
-  document.querySelector('.section-icon').textContent = m.icono;
-
-  document.querySelectorAll('.sidebar-item').forEach(item => {
-    item.classList.toggle('active', item.dataset.modulo === modulo);
-  });
+  document.getElementById('moduloIcono').textContent = m.icono;
+  document.getElementById('moduloBadge').textContent = m.badge;
+  document.querySelectorAll('.sidebar-item').forEach(it => { it.classList.toggle('active', it.dataset.modulo === modulo); });
+  const vistaAdmin = document.getElementById('vista-administradoras');
+  const vistaOtros = document.getElementById('vista-otros');
+  if (modulo === 'administradoras') {
+    vistaAdmin.style.display = '';
+    vistaOtros.style.display = 'none';
+  } else {
+    vistaAdmin.style.display = 'none';
+    vistaOtros.style.display = '';
+    document.getElementById('otrosTitulo').textContent = m.titulo + ' · En preparación';
+    document.getElementById('otrosDesc').textContent = m.descripcion + '. Se construirá en las siguientes fases.';
+  }
 }
 
-document.querySelectorAll('.sidebar-item').forEach(item => {
-  item.addEventListener('click', () => {
-    cambiarModulo(item.dataset.modulo);
-  });
-});
+document.querySelectorAll('.sidebar-item').forEach(item => { item.addEventListener('click', () => cambiarModulo(item.dataset.modulo)); });
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function mostrarToast(tipo, mensaje) {
+  const toast = document.getElementById('toast');
+  const msg = document.getElementById('toastMsg');
+  toast.className = 'toast ' + (tipo === 'error' ? 'error' : 'success') + ' show';
+  msg.textContent = mensaje;
+  setTimeout(() => { toast.classList.remove('show'); }, 3200);
+}
 
 async function cerrarSesion() {
-  if (!confirm('¿Estás segura de cerrar sesión?')) return;
-  try {
-    await sb.auth.signOut();
-    window.location.href = 'login.html';
-  } catch (err) {
-    alert('No se pudo cerrar sesión.');
-  }
+  if (!confirm('¿Cerrar sesión?')) return;
+  try { await sb.auth.signOut(); window.location.href = 'login.html'; }
+  catch (err) { alert('No se pudo cerrar sesión.'); }
 }
 
 function ocultarLoading() {
