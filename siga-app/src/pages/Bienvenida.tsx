@@ -1,7 +1,9 @@
 import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 export default function Bienvenida() {
   const { session, salir } = useAuth()
+  const navigate = useNavigate()
 
   const email = session?.user.email || 'usuario@diipadesarrollos.com'
   const nombre = email.split('@')[0].replace(/\./g, ' ').replace(/_/g, ' ')
@@ -46,7 +48,8 @@ export default function Bienvenida() {
   ]
 
   const Tarjeta = ({ m }: { m: typeof modulosPrincipales[0] }) => (
-    <div className="relative overflow-hidden cursor-pointer transition"
+    <div onClick={() => m.titulo === 'Gestión de Administradoras y Carteras' && navigate('/carteras')}
+      className="relative overflow-hidden cursor-pointer transition"
          style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '12px', padding: '18px' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, width: '3px', height: '100%', background: m.color }} />
       <div className="flex items-center justify-center mb-3"
