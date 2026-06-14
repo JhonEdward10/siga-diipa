@@ -3,6 +3,9 @@ import { useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import Bienvenida from './pages/Bienvenida'
 import Carteras from './pages/Carteras'
+import Comercial from './pages/Comercial'
+import Contabilidad from './pages/Contabilidad'
+import Cliente from './pages/Cliente'
 
 export default function App() {
   const { session, tieneAcceso, cargando } = useAuth()
@@ -30,6 +33,9 @@ export default function App() {
           <>
             <Route path="/" element={<Bienvenida />} />
             <Route path="/carteras" element={<Carteras />} />
+            <Route path="/comercial" element={<Comercial />} />
+            <Route path="/contabilidad" element={<Contabilidad />} />
+            <Route path="/cliente" element={<Cliente />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}

@@ -48,7 +48,12 @@ export default function Bienvenida() {
   ]
 
   const Tarjeta = ({ m }: { m: typeof modulosPrincipales[0] }) => (
-    <div onClick={() => m.titulo === 'Gestión de Administradoras y Carteras' && navigate('/carteras')}
+      <div onClick={() => {
+        if (m.titulo === 'Gestión de Administradoras y Carteras') navigate('/carteras')
+        if (m.titulo === 'Comercial') navigate('/comercial')
+        if (m.titulo === 'Contabilidad') navigate('/contabilidad')
+        if (m.titulo === 'Cliente DIIPA') navigate('/cliente')
+      }}
       className="relative overflow-hidden cursor-pointer transition"
          style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '12px', padding: '18px' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, width: '3px', height: '100%', background: m.color }} />
