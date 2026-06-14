@@ -6,6 +6,11 @@ import Carteras from './pages/Carteras'
 import Comercial from './pages/Comercial'
 import Contabilidad from './pages/Contabilidad'
 import Cliente from './pages/Cliente'
+import Juridico from './pages/Juridico'
+import Rac from './pages/Rac'
+import RecursosHumanos from './pages/RecursosHumanos'
+import Dashboard from './pages/Dashboard'
+import Configuracion from './pages/Configuracion'
 
 export default function App() {
   const { session, tieneAcceso, cargando } = useAuth()
@@ -36,6 +41,11 @@ export default function App() {
             <Route path="/comercial" element={<Comercial />} />
             <Route path="/contabilidad" element={<Contabilidad />} />
             <Route path="/cliente" element={<Cliente />} />
+            <Route path="/juridico" element={<Juridico />} />
+            <Route path="/rac" element={<Rac />} />
+            <Route path="/recursos-humanos" element={<RecursosHumanos />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/configuracion" element={<Configuracion />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}

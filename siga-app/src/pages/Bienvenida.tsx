@@ -53,6 +53,11 @@ export default function Bienvenida() {
         if (m.titulo === 'Comercial') navigate('/comercial')
         if (m.titulo === 'Contabilidad') navigate('/contabilidad')
         if (m.titulo === 'Cliente DIIPA') navigate('/cliente')
+        if (m.titulo === 'Jurídico') navigate('/juridico')
+        if (m.titulo === 'RAC · Retención') navigate('/rac')
+        if (m.titulo === 'Recursos Humanos') navigate('/recursos-humanos')
+        if (m.titulo === 'Dashboard DGE') navigate('/dashboard')
+        if (m.titulo === 'Configuración') navigate('/configuracion')
       }}
       className="relative overflow-hidden cursor-pointer transition"
          style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '12px', padding: '18px' }}>
