@@ -7,9 +7,15 @@ type Garantia = {
   folio: string
   cartera_id: number | null
   tipo_caso: string | null
+  num_credito: string | null
   direccion: string | null
-  estatus: string | null
+  estado_mx: string | null
+  municipio: string | null
   valor_estimado: number | null
+  precio_piso: number | null
+  m2_terreno: number | null
+  m2_construccion: number | null
+  estatus: string | null
 }
 
 const TIPOS_CASO = [
@@ -25,6 +31,7 @@ export default function Garantias() {
 
   const [modalAbierto, setModalAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
+  const [editandoId, setEditandoId] = useState<number | null>(null)
   const [folioNuevo, setFolioNuevo] = useState('')
   const [form, setForm] = useState({
     cartera_id: '', tipo_caso: '', num_credito: '', direccion: '',
@@ -35,15 +42,14 @@ export default function Garantias() {
   async function cargar() {
     const { data: gar, error: errGar } = await supabase
       .from('garantias')
-      .select('id, folio, cartera_id, tipo_caso, direccion, estatus, valor_estimado')
+      .select('id, folio, cartera_id, tipo_caso, num_credito, direccion, estado_mx, municipio, valor_estimado, precio_piso, m2_terreno, m2_construccion, estatus')
       .eq('archivada', false).eq('eliminada', false)
       .order('folio', { ascending: true })
 
     if (errGar) { setError(errGar.message); setCargando(false); return }
 
     const { data: cart } = await supabase
-      .from('carteras')
-      .select('id, folio, nombre')
+      .from('carteras').select('id, folio, nombre')
       .eq('archivada', false).eq('eliminada', false)
 
     setCarteras(cart || [])
@@ -74,13 +80,29 @@ export default function Garantias() {
   }
 
   async function abrirCrear() {
-    if (carteras.length === 0) {
-      alert('Primero crea al menos una cartera antes de agregar garantías.')
-      return
-    }
+    if (carteras.length === 0) { alert('Primero crea al menos una cartera.'); return }
     const folio = await generarFolio()
+    setEditandoId(null)
     setFolioNuevo(folio)
     setForm({ cartera_id: '', tipo_caso: '', num_credito: '', direccion: '', estado_mx: '', municipio: '', valor_estimado: '', precio_piso: '', m2_terreno: '', m2_construccion: '' })
+    setModalAbierto(true)
+  }
+
+  function abrirEditar(g: Garantia) {
+    setEditandoId(g.id)
+    setFolioNuevo(g.folio)
+    setForm({
+      cartera_id: g.cartera_id ? String(g.cartera_id) : '',
+      tipo_caso: g.tipo_caso || '',
+      num_credito: g.num_credito || '',
+      direccion: g.direccion || '',
+      estado_mx: g.estado_mx || '',
+      municipio: g.municipio || '',
+      valor_estimado: g.valor_estimado != null ? String(g.valor_estimado) : '',
+      precio_piso: g.precio_piso != null ? String(g.precio_piso) : '',
+      m2_terreno: g.m2_terreno != null ? String(g.m2_terreno) : '',
+      m2_construccion: g.m2_construccion != null ? String(g.m2_construccion) : '',
+    })
     setModalAbierto(true)
   }
 
@@ -90,19 +112,19 @@ export default function Garantias() {
     if (!form.direccion.trim()) { alert('La dirección es obligatoria'); return }
 
     setGuardando(true)
-
-    // Validar duplicado por dirección
     const dirNorm = normalizar(form.direccion)
+
+    // Validar duplicado solo al crear (o si cambió la dirección al editar)
     const { data: dup } = await supabase
-      .from('garantias').select('id').eq('direccion_norm', dirNorm).eq('eliminada', false).limit(1)
-    if (dup && dup.length > 0) {
+      .from('garantias').select('id').eq('direccion_norm', dirNorm).eq('eliminada', false)
+    const hayDuplicado = (dup || []).some((d) => d.id !== editandoId)
+    if (hayDuplicado) {
       setGuardando(false)
-      alert('Ya existe una garantía con esa dirección.')
+      alert('Ya existe otra garantía con esa dirección.')
       return
     }
 
-    const { error: errIns } = await supabase.from('garantias').insert({
-      folio: folioNuevo,
+    const datos = {
       cartera_id: Number(form.cartera_id),
       tipo_caso: form.tipo_caso,
       num_credito: form.num_credito.trim() || null,
@@ -114,12 +136,19 @@ export default function Garantias() {
       precio_piso: form.precio_piso ? Number(form.precio_piso) : null,
       m2_terreno: form.m2_terreno ? Number(form.m2_terreno) : null,
       m2_construccion: form.m2_construccion ? Number(form.m2_construccion) : null,
-      estatus: 'activa',
-    })
+    }
+
+    let errGuardar
+    if (editandoId === null) {
+      const { error: e } = await supabase.from('garantias').insert({ folio: folioNuevo, estatus: 'activa', ...datos })
+      errGuardar = e
+    } else {
+      const { error: e } = await supabase.from('garantias').update(datos).eq('id', editandoId)
+      errGuardar = e
+    }
 
     setGuardando(false)
-    if (errIns) { alert('Error al guardar: ' + errIns.message); return }
-
+    if (errGuardar) { alert('Error al guardar: ' + errGuardar.message); return }
     setModalAbierto(false)
     await cargar()
   }
@@ -134,8 +163,7 @@ export default function Garantias() {
   return (
     <div>
       <div className="flex justify-end" style={{ marginBottom: '14px' }}>
-        <button onClick={abrirCrear}
-                style={{ background: '#0C447C', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={abrirCrear} style={{ background: '#0C447C', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
           + Nueva Garantía
         </button>
       </div>
@@ -159,6 +187,9 @@ export default function Garantias() {
                 <div>📂 {g.cartera_id && mc[g.cartera_id] ? mc[g.cartera_id] : 'Sin cartera'}</div>
                 {g.valor_estimado != null && <div>💰 Valor: ${g.valor_estimado.toLocaleString('es-MX')}</div>}
               </div>
+              <button onClick={() => abrirEditar(g)} style={{ background: '#fff', color: '#0C447C', border: '1px solid #c8d0db', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+                ✏️ Editar
+              </button>
             </div>
           ))}
         </div>
@@ -168,11 +199,9 @@ export default function Garantias() {
         <div onClick={(e) => { if (e.target === e.currentTarget) setModalAbierto(false) }}
              style={{ position: 'fixed', inset: 0, background: 'rgba(4,44,83,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
           <div style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="flex items-center justify-between"
-                 style={{ background: 'linear-gradient(135deg, #0C447C 0%, #042C53 100%)', color: 'white', padding: '14px 20px', borderRadius: '14px 14px 0 0' }}>
-              <div style={{ fontSize: '14px', fontWeight: 500 }}>Nueva Garantía · {folioNuevo}</div>
-              <button onClick={() => setModalAbierto(false)}
-                      style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '28px', height: '28px', borderRadius: '7px', fontSize: '16px', cursor: 'pointer' }}>✕</button>
+            <div className="flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #0C447C 0%, #042C53 100%)', color: 'white', padding: '14px 20px', borderRadius: '14px 14px 0 0' }}>
+              <div style={{ fontSize: '14px', fontWeight: 500 }}>{editandoId === null ? 'Nueva Garantía' : 'Editar Garantía'} · {folioNuevo}</div>
+              <button onClick={() => setModalAbierto(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '28px', height: '28px', borderRadius: '7px', fontSize: '16px', cursor: 'pointer' }}>✕</button>
             </div>
             <div style={{ padding: '20px' }}>
               <div style={{ marginBottom: '10px' }}>
@@ -182,7 +211,6 @@ export default function Garantias() {
                   {carteras.map((c) => <option key={c.id} value={c.id}>{c.folio} · {c.nombre}</option>)}
                 </select>
               </div>
-
               <div style={{ marginBottom: '10px' }}>
                 <label style={labelStyle}>Tipo de caso *</label>
                 <select value={form.tipo_caso} onChange={(e) => setForm({ ...form, tipo_caso: e.target.value })} style={inputStyle}>
@@ -190,32 +218,20 @@ export default function Garantias() {
                   {TIPOS_CASO.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-
-              <div style={{ marginBottom: '10px' }}>
-                <label style={labelStyle}>No. de Crédito (opcional)</label>
-                <input value={form.num_credito} onChange={(e) => setForm({ ...form, num_credito: e.target.value })} style={inputStyle} />
-              </div>
-
-              <div style={{ marginBottom: '10px' }}>
-                <label style={labelStyle}>Dirección / Ubicación *</label>
-                <input value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} placeholder="Calle, Colonia, Ciudad, Estado" style={inputStyle} />
-              </div>
-
+              <div style={{ marginBottom: '10px' }}><label style={labelStyle}>No. de Crédito (opcional)</label><input value={form.num_credito} onChange={(e) => setForm({ ...form, num_credito: e.target.value })} style={inputStyle} /></div>
+              <div style={{ marginBottom: '10px' }}><label style={labelStyle}>Dirección / Ubicación *</label><input value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} placeholder="Calle, Colonia, Ciudad, Estado" style={inputStyle} /></div>
               <div className="flex" style={{ gap: '12px', marginBottom: '10px' }}>
                 <div style={{ flex: 1 }}><label style={labelStyle}>Estado</label><input value={form.estado_mx} onChange={(e) => setForm({ ...form, estado_mx: e.target.value })} style={inputStyle} /></div>
                 <div style={{ flex: 1 }}><label style={labelStyle}>Municipio</label><input value={form.municipio} onChange={(e) => setForm({ ...form, municipio: e.target.value })} style={inputStyle} /></div>
               </div>
-
               <div className="flex" style={{ gap: '12px', marginBottom: '10px' }}>
                 <div style={{ flex: 1 }}><label style={labelStyle}>Valor estimado ($)</label><input type="number" value={form.valor_estimado} onChange={(e) => setForm({ ...form, valor_estimado: e.target.value })} style={inputStyle} /></div>
                 <div style={{ flex: 1 }}><label style={labelStyle}>Precio piso ($)</label><input type="number" value={form.precio_piso} onChange={(e) => setForm({ ...form, precio_piso: e.target.value })} style={inputStyle} /></div>
               </div>
-
               <div className="flex" style={{ gap: '12px', marginBottom: '10px' }}>
                 <div style={{ flex: 1 }}><label style={labelStyle}>M² Terreno</label><input type="number" value={form.m2_terreno} onChange={(e) => setForm({ ...form, m2_terreno: e.target.value })} style={inputStyle} /></div>
                 <div style={{ flex: 1 }}><label style={labelStyle}>M² Construcción</label><input type="number" value={form.m2_construccion} onChange={(e) => setForm({ ...form, m2_construccion: e.target.value })} style={inputStyle} /></div>
               </div>
-
               <div className="flex justify-end" style={{ gap: '8px', marginTop: '20px', paddingTop: '16px', borderTop: '0.5px solid #dde3ea' }}>
                 <button onClick={() => setModalAbierto(false)} style={{ padding: '9px 20px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 500, cursor: 'pointer', background: '#eef1f5', color: '#4a5a6e', border: '1px solid #c8d0db' }}>Cancelar</button>
                 <button onClick={guardar} disabled={guardando} style={{ padding: '9px 20px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 500, cursor: guardando ? 'not-allowed' : 'pointer', background: '#0C447C', color: 'white', border: 'none', opacity: guardando ? 0.6 : 1 }}>{guardando ? 'Guardando...' : 'Guardar'}</button>
