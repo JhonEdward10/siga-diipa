@@ -9,6 +9,7 @@ type Cartera = {
   estatus: string | null
   fecha_ingreso: string | null
   admin_id: number | null
+  notas: string | null
 }
 
 type Admin = { id: number; nombre: string; estatus: string | null }
@@ -21,9 +22,9 @@ export default function CarterasLista() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Estado del formulario (modal)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
+  const [editandoId, setEditandoId] = useState<number | null>(null) // null = creando, número = editando
   const [folioNuevo, setFolioNuevo] = useState('')
   const [form, setForm] = useState({
     nombre: '', admin_id: '', tipo_origen: 'ADM', estatus: 'activa',
@@ -33,7 +34,7 @@ export default function CarterasLista() {
   async function cargar() {
     const { data: cart, error: errCart } = await supabase
       .from('carteras')
-      .select('id, folio, nombre, tipo_origen, estatus, fecha_ingreso, admin_id')
+      .select('id, folio, nombre, tipo_origen, estatus, fecha_ingreso, admin_id, notas')
       .eq('archivada', false).eq('eliminada', false)
       .order('folio', { ascending: true })
 
@@ -53,27 +54,37 @@ export default function CarterasLista() {
     return m
   }
 
-  // Genera el siguiente folio CAR-XXXX
   async function generarFolio(): Promise<string> {
-    const { data } = await supabase
-      .from('carteras')
-      .select('folio')
-      .like('folio', 'CAR-%')
-
+    const { data } = await supabase.from('carteras').select('folio').like('folio', 'CAR-%')
     let max = 0
     ;(data || []).forEach((row) => {
-      // Saca solo los números del folio, sin importar cuántos dígitos tenga
       const num = parseInt((row.folio || '').replace(/\D/g, ''), 10)
       if (!isNaN(num) && num > max) max = num
     })
-
     return 'CAR-' + String(max + 1).padStart(4, '0')
   }
-  
-  async function abrirModal() {
+
+  // Abrir para CREAR
+  async function abrirCrear() {
     const folio = await generarFolio()
+    setEditandoId(null)
     setFolioNuevo(folio)
     setForm({ nombre: '', admin_id: '', tipo_origen: 'ADM', estatus: 'activa', fecha_ingreso: new Date().toISOString().slice(0, 10), notas: '' })
+    setModalAbierto(true)
+  }
+
+  // Abrir para EDITAR (precarga los datos)
+  function abrirEditar(c: Cartera) {
+    setEditandoId(c.id)
+    setFolioNuevo(c.folio)
+    setForm({
+      nombre: c.nombre || '',
+      admin_id: c.admin_id ? String(c.admin_id) : '',
+      tipo_origen: c.tipo_origen || 'ADM',
+      estatus: c.estatus || 'activa',
+      fecha_ingreso: c.fecha_ingreso || new Date().toISOString().slice(0, 10),
+      notas: c.notas || '',
+    })
     setModalAbierto(true)
   }
 
@@ -81,21 +92,31 @@ export default function CarterasLista() {
     if (!form.nombre.trim()) { alert('El nombre de la cartera es obligatorio'); return }
     setGuardando(true)
 
-    const { error: errIns } = await supabase.from('carteras').insert({
-      folio: folioNuevo,
+    const datos = {
       nombre: form.nombre.trim(),
       admin_id: form.admin_id ? Number(form.admin_id) : null,
       tipo_origen: form.tipo_origen,
       estatus: form.estatus,
       fecha_ingreso: form.fecha_ingreso || null,
       notas: form.notas.trim() || null,
-    })
+    }
+
+    let errGuardar
+    if (editandoId === null) {
+      // CREAR
+      const { error: e } = await supabase.from('carteras').insert({ folio: folioNuevo, ...datos })
+      errGuardar = e
+    } else {
+      // EDITAR
+      const { error: e } = await supabase.from('carteras').update(datos).eq('id', editandoId)
+      errGuardar = e
+    }
 
     setGuardando(false)
-    if (errIns) { alert('Error al guardar: ' + errIns.message); return }
+    if (errGuardar) { alert('Error al guardar: ' + errGuardar.message); return }
 
     setModalAbierto(false)
-    await cargar() // recarga la lista
+    await cargar()
   }
 
   if (cargando) return <div style={{ padding: '2rem', textAlign: 'center', color: '#5d6b80' }}>Cargando carteras...</div>
@@ -105,15 +126,13 @@ export default function CarterasLista() {
 
   return (
     <div>
-      {/* Botón nueva cartera */}
       <div className="flex justify-end" style={{ marginBottom: '14px' }}>
-        <button onClick={abrirModal}
+        <button onClick={abrirCrear}
                 style={{ background: '#0C447C', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
           + Nueva Cartera
         </button>
       </div>
 
-      {/* Lista de carteras */}
       {carteras.length === 0 ? (
         <div style={{ background: '#fff', border: '0.5px dashed #c8d0db', borderRadius: '12px', padding: '3rem 2rem', textAlign: 'center', color: '#5d6b80' }}>
           <div style={{ fontSize: '42px', marginBottom: '12px', opacity: 0.5 }}>📂</div>
@@ -140,19 +159,22 @@ export default function CarterasLista() {
                 <div>📋 Origen: {TIPO_ORIGEN[c.tipo_origen || ''] || c.tipo_origen || 'N/D'}</div>
                 {c.fecha_ingreso && <div>📅 Ingreso: {new Date(c.fecha_ingreso).toLocaleDateString('es-MX')}</div>}
               </div>
+              <button onClick={() => abrirEditar(c)}
+                      style={{ background: '#fff', color: '#0C447C', border: '1px solid #c8d0db', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+                ✏️ Editar
+              </button>
             </div>
           ))}
         </div>
       )}
 
-      {/* MODAL FORMULARIO */}
       {modalAbierto && (
         <div onClick={(e) => { if (e.target === e.currentTarget) setModalAbierto(false) }}
              style={{ position: 'fixed', inset: 0, background: 'rgba(4,44,83,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
           <div style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="flex items-center justify-between"
                  style={{ background: 'linear-gradient(135deg, #0C447C 0%, #042C53 100%)', color: 'white', padding: '14px 20px', borderRadius: '14px 14px 0 0' }}>
-              <div style={{ fontSize: '14px', fontWeight: 500 }}>Nueva Cartera</div>
+              <div style={{ fontSize: '14px', fontWeight: 500 }}>{editandoId === null ? 'Nueva Cartera' : 'Editar Cartera'}</div>
               <button onClick={() => setModalAbierto(false)}
                       style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '28px', height: '28px', borderRadius: '7px', fontSize: '16px', cursor: 'pointer' }}>✕</button>
             </div>
