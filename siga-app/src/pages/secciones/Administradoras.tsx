@@ -20,6 +20,7 @@ export default function Administradoras() {
   const [admins, setAdmins] = useState<Administradora[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState('')
 
   const [modalAbierto, setModalAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -135,8 +136,10 @@ export default function Administradoras() {
         ))}
       </div>
 
-      <div className="flex justify-end" style={{ marginBottom: '14px' }}>
-        <button onClick={abrirCrear} style={{ background: '#0C447C', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+      <div className="flex items-center" style={{ gap: '12px', marginBottom: '14px' }}>
+        <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="🔍 Buscar por nombre, folio o contacto..."
+               style={{ flex: 1, padding: '9px 14px', border: '1px solid #c8d0db', borderRadius: '8px', fontSize: '12.5px', background: '#fff', fontFamily: 'Sora, sans-serif' }} />
+        <button onClick={abrirCrear} style={{ background: '#0C447C', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
           + Nueva Administradora
         </button>
       </div>
@@ -149,7 +152,12 @@ export default function Administradoras() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '14px' }}>
-          {admins.map((a) => (
+          {admins.filter((a) =>
+            !filtro ||
+            a.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+            (a.folio || '').toLowerCase().includes(filtro.toLowerCase()) ||
+            (a.contacto_nombre || '').toLowerCase().includes(filtro.toLowerCase())
+          ).map((a) => (
             <div key={a.id} style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="flex items-start" style={{ gap: '10px' }}>
                 <div className="flex items-center justify-center" style={{ width: '38px', height: '38px', borderRadius: '9px', background: '#E6F1FB', color: '#0C447C', fontSize: '17px', flexShrink: 0 }}>🏦</div>
