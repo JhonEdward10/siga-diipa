@@ -11,6 +11,7 @@ import Rac from './pages/Rac'
 import RecursosHumanos from './pages/RecursosHumanos'
 import Dashboard from './pages/Dashboard'
 import Configuracion from './pages/Configuracion'
+import Agenda from './pages/Agenda'
 
 export default function App() {
   const { session, tieneAcceso, cargando } = useAuth()
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/recursos-humanos" element={<RecursosHumanos />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/configuracion" element={<Configuracion />} />
+            <Route path="/agenda" element={<Agenda />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}

@@ -102,8 +102,12 @@ export default function Bienvenida() {
             <div style={{ fontSize: '13px', fontWeight: 500 }}>{nombreFormateado}</div>
             <div style={{ fontSize: '10.5px', color: '#B5D4F4', marginTop: '1px' }}>{email}</div>
           </div>
+          <button onClick={() => navigate('/agenda')}
+            style={{ background: 'rgba(255,255,255,0.12)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', padding: '7px 13px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 500, cursor: 'pointer', marginRight: '8px' }}>
+            📅 Agenda
+          </button>
           <button onClick={manejarSalir}
-                  style={{ background: 'rgba(255,255,255,0.12)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', padding: '7px 13px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 500, cursor: 'pointer' }}>
+            style={{ background: 'rgba(255,255,255,0.12)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', padding: '7px 13px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 500, cursor: 'pointer' }}>
             Cerrar sesión
           </button>
         </div>
