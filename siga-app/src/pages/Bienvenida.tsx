@@ -46,17 +46,17 @@ export default function Bienvenida() {
     { icono: '📊', titulo: 'Dashboard DGE', desc: 'Vista global · KPIs · pendientes', color: '#042C53', bg: '#E6F1FB' },
     { icono: '⚙️', titulo: 'Configuración', desc: 'Usuarios · roles · firmantes', color: '#5d6b80', bg: '#dde3ea' },
   ]
-  const modulos = [
-    { icono: '🏦', titulo: 'Gestión de Administradoras y Carteras', desc: 'Revisión · pre-dictámenes URRJ · hitos legales', color: '#0F6E56', bg: '#E1F5EE' },
-    { icono: '🏢', titulo: 'Comercial', desc: 'Prospectos · catálogo · marketing', color: '#185FA5', bg: '#E6F1FB' },
-    { icono: '🏆', titulo: 'Cliente DIIPA', desc: 'Expediente · 13 pestañas integradas', color: '#1D9E75', bg: '#E1F5EE' },
-    { icono: '⚖️', titulo: 'Jurídico', desc: 'Demandas · litigios · apartados', color: '#0C447C', bg: '#E6F1FB' },
-    { icono: '💼', titulo: 'Contabilidad', desc: 'Cobros · CFDI · comisiones', color: '#085041', bg: '#E1F5EE' },
-    { icono: '🎧', titulo: 'RAC · Retención', desc: 'Motor de Crisis · Cláusula 16ª', color: '#378ADD', bg: '#E6F1FB' },
-    { icono: '👥', titulo: 'Recursos Humanos', desc: 'Plantilla · nómina · IMSS', color: '#1D9E75', bg: '#E1F5EE' },
-    { icono: '📊', titulo: 'Dashboard DGE', desc: 'Vista global · KPIs · pendientes', color: '#042C53', bg: '#E6F1FB' },
-    { icono: '⚙️', titulo: 'Configuración', desc: 'Usuarios · roles · firmantes', color: '#5d6b80', bg: '#dde3ea' },
-  ]   
+  // const modulos = [
+  //   { icono: '🏦', titulo: 'Gestión de Administradoras y Carteras', desc: 'Revisión · pre-dictámenes URRJ · hitos legales', color: '#0F6E56', bg: '#E1F5EE' },
+  //   { icono: '🏢', titulo: 'Comercial', desc: 'Prospectos · catálogo · marketing', color: '#185FA5', bg: '#E6F1FB' },
+  //   { icono: '🏆', titulo: 'Cliente DIIPA', desc: 'Expediente · 13 pestañas integradas', color: '#1D9E75', bg: '#E1F5EE' },
+  //   { icono: '⚖️', titulo: 'Jurídico', desc: 'Demandas · litigios · apartados', color: '#0C447C', bg: '#E6F1FB' },
+  //   { icono: '💼', titulo: 'Contabilidad', desc: 'Cobros · CFDI · comisiones', color: '#085041', bg: '#E1F5EE' },
+  //   { icono: '🎧', titulo: 'RAC · Retención', desc: 'Motor de Crisis · Cláusula 16ª', color: '#378ADD', bg: '#E6F1FB' },
+  //   { icono: '👥', titulo: 'Recursos Humanos', desc: 'Plantilla · nómina · IMSS', color: '#1D9E75', bg: '#E1F5EE' },
+  //   { icono: '📊', titulo: 'Dashboard DGE', desc: 'Vista global · KPIs · pendientes', color: '#042C53', bg: '#E6F1FB' },
+  //   { icono: '⚙️', titulo: 'Configuración', desc: 'Usuarios · roles · firmantes', color: '#5d6b80', bg: '#dde3ea' },
+  // ]   
   const Tarjeta = ({ m }: { m: typeof modulosPrincipales[0] }) => (
       <div onClick={() => {
         if (m.titulo === 'Gestión de Administradoras y Carteras') navigate('/carteras')
