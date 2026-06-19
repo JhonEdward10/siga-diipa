@@ -5,24 +5,31 @@ type Prospecto = {
   id: number
   folio: string | null
   estatus: string | null
+  etapa: number | null
   nombre: string
   correo: string | null
   telefono: string | null
   ciudad: string | null
   estado: string | null
-  curp: string | null
-  rfc: string | null
-  ocupacion: string | null
-  estado_civil: string | null
-  domicilio: string | null
-  vendedor: string | null
   tipo_proceso: string | null
 }
 
+// El pipeline de 5 etapas (sacado del sistema viejo de Paola)
+const ETAPAS = [
+  { num: 1, label: 'Primer contacto', icon: '📞', color: '#15803d', bg: '#dcfce7' },
+  { num: 2, label: 'Cita agendada', icon: '📅', color: '#9a3412', bg: '#fed7aa' },
+  { num: 3, label: 'Visitado', icon: '🚶', color: '#5b21b6', bg: '#ede9fe' },
+  { num: 4, label: 'Pre-cliente', icon: '📝', color: '#0c4a6e', bg: '#dbeafe' },
+  { num: 5, label: 'Cliente DIIPA', icon: '🏆', color: '#1e3a8a', bg: '#dbeafe' },
+]
+
+function etapaDef(num: number | null) {
+  return ETAPAS[(num || 1) - 1] || ETAPAS[0]
+}
+
 const PROCESOS: Record<string, string> = {
-  svta: 'SVTA — Prestación de Servicios', 'pv-lv': 'Promesa CV — Le Ville',
-  'pv-esp': 'Promesa CV — España', pv: 'Promesa de Compraventa',
-  renta: 'Renta', comodato: 'Comodato', otro: 'Otro',
+  svta: 'SVTA', 'pv-lv': 'Promesa CV — Le Ville', 'pv-esp': 'Promesa CV — España',
+  pv: 'Promesa de Compraventa', renta: 'Renta', comodato: 'Comodato', otro: 'Otro',
 }
 
 export default function Prospectos() {
@@ -30,6 +37,7 @@ export default function Prospectos() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
+  const [filtroEtapa, setFiltroEtapa] = useState<number | null>(null)
 
   const [modalAbierto, setModalAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -44,7 +52,7 @@ export default function Prospectos() {
   async function cargar() {
     const { data, error: err } = await supabase
       .from('prospectos')
-      .select('id, folio, estatus, nombre, correo, telefono, ciudad, estado, curp, rfc, ocupacion, estado_civil, domicilio, vendedor, tipo_proceso')
+      .select('id, folio, estatus, etapa, nombre, correo, telefono, ciudad, estado, tipo_proceso')
       .order('id', { ascending: false })
     if (err) { setError(err.message); setCargando(false); return }
     setProspectos(data || [])
@@ -52,6 +60,38 @@ export default function Prospectos() {
   }
 
   useEffect(() => { cargar() }, [])
+
+  // Avanzar el prospecto a la siguiente etapa
+  async function avanzarEtapa(p: Prospecto) {
+    const etapaActual = p.etapa || 1
+    if (etapaActual >= 5) return // ya está en la última
+
+    const nuevaEtapa = etapaActual + 1
+    // Si llega a etapa 5, también se vuelve "cliente"
+    const nuevoEstatus = nuevaEtapa === 5 ? 'cliente' : p.estatus
+
+    const { error: err } = await supabase
+      .from('prospectos')
+      .update({ etapa: nuevaEtapa, estatus: nuevoEstatus })
+      .eq('id', p.id)
+
+    if (err) { alert('Error al avanzar etapa: ' + err.message); return }
+    await cargar()
+  }
+
+  // Retroceder una etapa (por si se equivocaron)
+  async function retrocederEtapa(p: Prospecto) {
+    const etapaActual = p.etapa || 1
+    if (etapaActual <= 1) return
+    const nuevaEtapa = etapaActual - 1
+    const nuevoEstatus = nuevaEtapa < 5 ? 'prospecto' : p.estatus
+    const { error: err } = await supabase
+      .from('prospectos')
+      .update({ etapa: nuevaEtapa, estatus: nuevoEstatus })
+      .eq('id', p.id)
+    if (err) { alert('Error: ' + err.message); return }
+    await cargar()
+  }
 
   async function generarFolio(): Promise<string> {
     const { data } = await supabase.from('prospectos').select('folio').like('folio', 'PRO-%')
@@ -72,7 +112,6 @@ export default function Prospectos() {
   }
 
   async function abrirEditar(p: Prospecto) {
-    // Traer el registro completo
     const { data } = await supabase.from('prospectos').select('*').eq('id', p.id).single()
     if (!data) return
     setEditandoId(p.id)
@@ -91,7 +130,6 @@ export default function Prospectos() {
   async function guardar() {
     if (!form.nombre.trim()) { alert('El nombre es obligatorio'); return }
     setGuardando(true)
-
     const datos = {
       estatus: form.estatus, vendedor: form.vendedor.trim() || null, sucursal: form.sucursal.trim() || null,
       unidad_responsable: form.unidad_responsable.trim() || null, tipo_proceso: form.tipo_proceso || null,
@@ -101,16 +139,14 @@ export default function Prospectos() {
       ocupacion: form.ocupacion.trim() || null, estado_civil: form.estado_civil || null,
       domicilio: form.domicilio.trim() || null, notas: form.notas.trim() || null,
     }
-
     let errGuardar
     if (editandoId === null) {
-      const { error: e } = await supabase.from('prospectos').insert({ folio: folioNuevo, ...datos })
+      const { error: e } = await supabase.from('prospectos').insert({ folio: folioNuevo, etapa: 1, ...datos })
       errGuardar = e
     } else {
       const { error: e } = await supabase.from('prospectos').update(datos).eq('id', editandoId)
       errGuardar = e
     }
-
     setGuardando(false)
     if (errGuardar) { alert('Error al guardar: ' + errGuardar.message); return }
     setModalAbierto(false)
@@ -120,41 +156,47 @@ export default function Prospectos() {
   if (cargando) return <div style={{ padding: '2rem', textAlign: 'center', color: '#5d6b80' }}>Cargando prospectos...</div>
   if (error) return <div style={{ padding: '2rem', textAlign: 'center', color: '#b91c1c' }}>Error: {error}</div>
 
-  const filtrados = prospectos.filter((p) =>
-    !filtro || p.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    (p.folio || '').toLowerCase().includes(filtro.toLowerCase()) ||
-    (p.correo || '').toLowerCase().includes(filtro.toLowerCase())
-  )
+  const filtrados = prospectos.filter((p) => {
+    const coincideTexto = !filtro ||
+      p.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+      (p.folio || '').toLowerCase().includes(filtro.toLowerCase()) ||
+      (p.correo || '').toLowerCase().includes(filtro.toLowerCase())
+    const coincideEtapa = filtroEtapa === null || (p.etapa || 1) === filtroEtapa
+    return coincideTexto && coincideEtapa
+  })
 
-  const totalProspectos = prospectos.filter((p) => p.estatus === 'prospecto').length
-  const totalClientes = prospectos.filter((p) => p.estatus === 'cliente').length
+  // Contar cuántos prospectos hay en cada etapa
+  const conteoEtapas = ETAPAS.map((et) => prospectos.filter((p) => (p.etapa || 1) === et.num).length)
 
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid #c8d0db', borderRadius: '7px', fontSize: '13px', background: '#eef1f5', fontFamily: 'Sora, sans-serif' }
   const labelStyle = { display: 'block', fontSize: '11px', fontWeight: 500, color: '#4a5a6e', textTransform: 'uppercase' as const, marginBottom: '5px' }
 
   return (
     <div>
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
-        {[
-          { num: prospectos.length, label: 'Total', bg: '#E6F1FB', color: '#0C447C', ico: '👥' },
-          { num: totalProspectos, label: 'Prospectos', bg: '#FEF9C3', color: '#854D0E', ico: '👁️' },
-          { num: totalClientes, label: 'Clientes', bg: '#E1F5EE', color: '#0F6E56', ico: '✅' },
-        ].map((k) => (
-          <div key={k.label} className="flex items-center" style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '10px', padding: '14px 16px', gap: '12px' }}>
-            <div className="flex items-center justify-center" style={{ width: '38px', height: '38px', borderRadius: '8px', background: k.bg, color: k.color, fontSize: '18px' }}>{k.ico}</div>
-            <div>
-              <div style={{ fontSize: '21px', fontWeight: 600, fontFamily: 'monospace', lineHeight: 1.1 }}>{k.num}</div>
-              <div style={{ fontSize: '10.5px', color: '#5d6b80', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px' }}>{k.label}</div>
+      {/* PIPELINE — las 5 etapas con conteo (clickeable para filtrar) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: '18px' }}>
+        {ETAPAS.map((et, i) => {
+          const activo = filtroEtapa === et.num
+          return (
+            <div key={et.num} onClick={() => setFiltroEtapa(activo ? null : et.num)}
+                 style={{ background: activo ? et.color : '#fff', border: `1px solid ${activo ? et.color : '#c8d0db'}`, borderRadius: '10px', padding: '12px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s' }}>
+              <div style={{ fontSize: '20px', marginBottom: '4px' }}>{et.icon}</div>
+              <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'monospace', color: activo ? '#fff' : et.color, lineHeight: 1 }}>{conteoEtapas[i]}</div>
+              <div style={{ fontSize: '9.5px', fontWeight: 600, color: activo ? '#fff' : '#5d6b80', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>{et.label}</div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Toolbar */}
       <div className="flex items-center" style={{ gap: '12px', marginBottom: '14px' }}>
         <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="🔍 Buscar por nombre, folio o correo..."
                style={{ flex: 1, padding: '9px 14px', border: '1px solid #c8d0db', borderRadius: '8px', fontSize: '12.5px', background: '#fff', fontFamily: 'Sora, sans-serif' }} />
+        {filtroEtapa !== null && (
+          <button onClick={() => setFiltroEtapa(null)} style={{ background: '#eef1f5', color: '#4a5a6e', border: '1px solid #c8d0db', padding: '9px 14px', borderRadius: '8px', fontSize: '11.5px', fontFamily: 'Sora, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            ✕ Quitar filtro
+          </button>
+        )}
         <button onClick={abrirCrear} style={{ background: '#0C447C', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
           + Nuevo Prospecto
         </button>
@@ -163,35 +205,62 @@ export default function Prospectos() {
       {filtrados.length === 0 ? (
         <div style={{ background: '#fff', border: '0.5px dashed #c8d0db', borderRadius: '12px', padding: '3rem 2rem', textAlign: 'center', color: '#5d6b80' }}>
           <div style={{ fontSize: '42px', marginBottom: '12px', opacity: 0.5 }}>👥</div>
-          <h3 style={{ fontSize: '15px', fontWeight: 500, color: '#4a5a6e', marginBottom: '6px' }}>{filtro ? 'Sin resultados' : 'Sin prospectos'}</h3>
-          <p style={{ fontSize: '12px' }}>{filtro ? 'Prueba con otra búsqueda.' : 'Crea el primero con el botón de arriba.'}</p>
+          <h3 style={{ fontSize: '15px', fontWeight: 500, color: '#4a5a6e', marginBottom: '6px' }}>{filtro || filtroEtapa ? 'Sin resultados' : 'Sin prospectos'}</h3>
+          <p style={{ fontSize: '12px' }}>{filtro || filtroEtapa ? 'Prueba con otro filtro.' : 'Crea el primero con el botón de arriba.'}</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
-          {filtrados.map((p) => (
-            <div key={p.id} style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div className="flex items-start justify-between" style={{ gap: '8px' }}>
-                <div>
-                  <div style={{ fontSize: '10px', color: '#5d6b80', fontFamily: 'monospace', letterSpacing: '0.5px' }}>{p.folio}</div>
-                  <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#042C53' }}>{p.nombre}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '12px' }}>
+          {filtrados.map((p) => {
+            const et = etapaDef(p.etapa)
+            const etapaActual = p.etapa || 1
+            return (
+              <div key={p.id} style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="flex items-start justify-between" style={{ gap: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', color: '#5d6b80', fontFamily: 'monospace', letterSpacing: '0.5px' }}>{p.folio}</div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#042C53' }}>{p.nombre}</div>
+                  </div>
+                  <span style={{ fontSize: '9.5px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', background: et.bg, color: et.color, whiteSpace: 'nowrap' }}>{et.icon} {et.label}</span>
                 </div>
-                <span style={{
-                  fontSize: '9.5px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', textTransform: 'uppercase',
-                  background: p.estatus === 'cliente' ? '#E1F5EE' : '#FEF9C3',
-                  color: p.estatus === 'cliente' ? '#04342C' : '#854D0E',
-                }}>{p.estatus === 'cliente' ? 'Cliente' : 'Prospecto'}</span>
+
+                {/* Barra de progreso del pipeline */}
+                <div className="flex" style={{ gap: '3px' }}>
+                  {ETAPAS.map((e) => (
+                    <div key={e.num} style={{ flex: 1, height: '5px', borderRadius: '3px', background: e.num <= etapaActual ? et.color : '#eef1f5' }} />
+                  ))}
+                </div>
+
+                <div style={{ background: '#eef1f5', borderRadius: '6px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: '#4a5a6e' }}>
+                  {p.telefono && <div>📞 {p.telefono}</div>}
+                  {p.correo && <div>✉️ {p.correo}</div>}
+                  {(p.ciudad || p.estado) && <div>📍 {[p.ciudad, p.estado].filter(Boolean).join(', ')}</div>}
+                  {p.tipo_proceso && <div>📋 {PROCESOS[p.tipo_proceso] || p.tipo_proceso}</div>}
+                </div>
+
+                {/* Botones de acción del proceso */}
+                <div className="flex" style={{ gap: '6px' }}>
+                  {etapaActual > 1 && (
+                    <button onClick={() => retrocederEtapa(p)} title="Retroceder etapa"
+                            style={{ background: '#fff', color: '#5d6b80', border: '1px solid #c8d0db', padding: '7px 10px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+                      ←
+                    </button>
+                  )}
+                  <button onClick={() => abrirEditar(p)}
+                          style={{ flex: 1, background: '#fff', color: '#0C447C', border: '1px solid #c8d0db', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+                    ✏️ Editar
+                  </button>
+                  {etapaActual < 5 ? (
+                    <button onClick={() => avanzarEtapa(p)}
+                            style={{ flex: 1, background: et.color, color: 'white', border: 'none', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+                      Avanzar →
+                    </button>
+                  ) : (
+                    <span style={{ flex: 1, textAlign: 'center', padding: '7px', fontSize: '11px', color: '#1e3a8a', fontWeight: 600 }}>🏆 Cliente</span>
+                  )}
+                </div>
               </div>
-              <div style={{ background: '#eef1f5', borderRadius: '6px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: '#4a5a6e' }}>
-                {p.telefono && <div>📞 {p.telefono}</div>}
-                {p.correo && <div>✉️ {p.correo}</div>}
-                {(p.ciudad || p.estado) && <div>📍 {[p.ciudad, p.estado].filter(Boolean).join(', ')}</div>}
-                {p.tipo_proceso && <div>📋 {PROCESOS[p.tipo_proceso] || p.tipo_proceso}</div>}
-              </div>
-              <button onClick={() => abrirEditar(p)} style={{ background: '#fff', color: '#0C447C', border: '1px solid #c8d0db', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
-                ✏️ Ver / Editar
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -244,7 +313,7 @@ export default function Prospectos() {
               <div className="flex" style={{ gap: '12px', marginBottom: '10px' }}>
                 <div style={{ flex: 1 }}><label style={labelStyle}>CURP</label><input value={form.curp} onChange={(e) => setForm({ ...form, curp: e.target.value })} style={inputStyle} /></div>
                 <div style={{ flex: 1 }}><label style={labelStyle}>RFC</label><input value={form.rfc} onChange={(e) => setForm({ ...form, rfc: e.target.value })} style={inputStyle} /></div>
-                <div style={{ flex: 1 }}><label style={labelStyle}>Fecha nacimiento</label><input type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} style={inputStyle} /></div>
+                <div style={{ flex: 1 }}><label style={labelStyle}>Fecha nac.</label><input type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} style={inputStyle} /></div>
               </div>
               <div className="flex" style={{ gap: '12px', marginBottom: '10px' }}>
                 <div style={{ flex: 1 }}><label style={labelStyle}>Ocupación</label><input value={form.ocupacion} onChange={(e) => setForm({ ...form, ocupacion: e.target.value })} style={inputStyle} /></div>
