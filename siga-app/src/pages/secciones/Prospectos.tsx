@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import ModalAvanzarEtapa2 from './ModalAvanzarEtapa2'
+import ModalAvanzarEtapa3 from './ModalAvanzarEtapa3'
 
 type Prospecto = {
   id: number
@@ -38,6 +40,8 @@ export default function Prospectos() {
   const [error, setError] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
   const [filtroEtapa, setFiltroEtapa] = useState<number | null>(null)
+  const [modalEt2, setModalEt2] = useState<{ id: number; nombre: string; etapa: number } | null>(null)
+  const [modalEt3, setModalEt3] = useState<{ id: number; folio: string; nombre: string } | null>(null)
 
   const [modalAbierto, setModalAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -91,6 +95,17 @@ export default function Prospectos() {
       .eq('id', p.id)
     if (err) { alert('Error: ' + err.message); return }
     await cargar()
+  }
+
+ function clicAvanzar(p: Prospecto) {
+    const etapaActual = p.etapa || 1
+    if (etapaActual === 1) {
+      setModalEt2({ id: p.id, nombre: p.nombre, etapa: etapaActual })
+    } else if (etapaActual === 2) {
+      setModalEt3({ id: p.id, folio: p.folio || '', nombre: p.nombre })
+    } else {
+      avanzarEtapa(p)
+    }
   }
 
   async function generarFolio(): Promise<string> {
@@ -250,7 +265,7 @@ export default function Prospectos() {
                     ✏️ Editar
                   </button>
                   {etapaActual < 5 ? (
-                    <button onClick={() => avanzarEtapa(p)}
+                    <button onClick={() => clicAvanzar(p)}
                             style={{ flex: 1, background: et.color, color: 'white', border: 'none', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
                       Avanzar →
                     </button>
@@ -339,6 +354,30 @@ export default function Prospectos() {
           </div>
         </div>
       )}
+      
+      {/* Modal Etapa 1 → 2: agendar cita + vincular garantías */}
+      {modalEt2 && (
+        <ModalAvanzarEtapa2
+          prospectoId={modalEt2.id}
+          prospectoNombre={modalEt2.nombre}
+          etapaActual={modalEt2.etapa}
+          abierto={true}
+          onCerrar={() => setModalEt2(null)}
+          onGuardado={cargar}
+        />
+      )}
+
+      {modalEt3 && (
+        <ModalAvanzarEtapa3
+          prospectoId={modalEt3.id}
+          prospectoFolio={modalEt3.folio}
+          prospectoNombre={modalEt3.nombre}
+          abierto={true}
+          onCerrar={() => setModalEt3(null)}
+          onGuardado={cargar}
+        />
+      )}
+        
     </div>
   )
 }
