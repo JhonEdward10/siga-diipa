@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import ModalAvanzarEtapa2 from './ModalAvanzarEtapa2'
 import ModalAvanzarEtapa3 from './ModalAvanzarEtapa3'
+import ModalAvanzarEtapa4 from './ModalAvanzarEtapa4'
 
 type Prospecto = {
   id: number
@@ -42,6 +43,7 @@ export default function Prospectos() {
   const [filtroEtapa, setFiltroEtapa] = useState<number | null>(null)
   const [modalEt2, setModalEt2] = useState<{ id: number; nombre: string; etapa: number } | null>(null)
   const [modalEt3, setModalEt3] = useState<{ id: number; folio: string; nombre: string } | null>(null)
+  const [modalEt4, setModalEt4] = useState<{ id: number; folio: string; nombre: string } | null>(null)
 
   const [modalAbierto, setModalAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -103,6 +105,8 @@ export default function Prospectos() {
       setModalEt2({ id: p.id, nombre: p.nombre, etapa: etapaActual })
     } else if (etapaActual === 2) {
       setModalEt3({ id: p.id, folio: p.folio || '', nombre: p.nombre })
+    } else if (etapaActual === 3) {
+      setModalEt4({ id: p.id, folio: p.folio || '', nombre: p.nombre })
     } else {
       avanzarEtapa(p)
     }
@@ -374,6 +378,17 @@ export default function Prospectos() {
           prospectoNombre={modalEt3.nombre}
           abierto={true}
           onCerrar={() => setModalEt3(null)}
+          onGuardado={cargar}
+        />
+      )}
+
+      {modalEt4 && (
+        <ModalAvanzarEtapa4
+          prospectoId={modalEt4.id}
+          prospectoFolio={modalEt4.folio}
+          prospectoNombre={modalEt4.nombre}
+          abierto={true}
+          onCerrar={() => setModalEt4(null)}
           onGuardado={cargar}
         />
       )}
