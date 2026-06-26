@@ -3,17 +3,14 @@ import { supabase } from '../../lib/supabase'
 
 /* ════════════════════════════════════════════════════════════════════
    MODAL ETAPA 3 → 4 · Pre-cliente · KYC / AML / PLD / Carta
-   KYC ampliado al FORMATO OFICIAL DIIPA (7 secciones).
+   ETAPA 4 COMPLETA (pasos 1 a 6).
 
-   COMPLETO HASTA AQUÍ:
      - PASO 1 · Iniciar Proceso de Compra → apartados
-     - PASO 2 · KYC oficial DIIPA (7 secciones)  → apartado_kyc
-     - PASO 3 · AML/PLD                          → apartado_aml
-
-   PRÓXIMA ITERACIÓN (4c):
-     - PASO 4 · Descargar paquete (PDF idéntico al formato de Paola)
-     - PASO 5 · Subir firmados
-     - PASO 6 · Solicitar Carta a Jurídico → avanzar a etapa 4
+     - PASO 2 · KYC oficial DIIPA (7 secciones) → apartado_kyc
+     - PASO 3 · AML/PLD → apartado_aml
+     - PASO 4 · Descargar paquete PDF (KYC 7 secc + AML/PLD)
+     - PASO 5 · Subir paquete firmado → Storage privado
+     - PASO 6 · Solicitar Carta a Jurídico → avanza el prospecto a etapa 5
    ════════════════════════════════════════════════════════════════════ */
 
 type GarantiaDisp = {
@@ -66,22 +63,15 @@ const DOCS = [
 ] as const
 
 const KYC_VACIO = {
-  // Sección 1
   nombre: '', fecha_nacimiento: '', curp: '', rfc: '', nacionalidad: 'Mexicana',
   estado_civil: '', ocupacion: '', telefono: '', correo: '',
-  // Sección 2
   calle: '', colonia: '', municipio: '', estado: '', cp: '',
-  // Sección 3
   id_tipo: 'INE', id_numero: '', id_vigencia: '',
-  // Sección 4
   origen_recursos: '', monto_operacion: '', comprende_respaldo_contrato: '', comprende_devolucion: '',
-  // Sección 5
   objetivo_operacion: '', entiende_diligencia_sin_fecha: '', entiende_garantia_contingente: '',
-  // Sección 6
   doc_acta_nacimiento: false, doc_ine: false, doc_comprobante_domicilio: false,
   doc_constancia_fiscal: false, doc_curp: false, doc_rfc: false,
   doc_formato_pld: false, doc_formato_kyc: false, doc_formato_confidencialidad: false, doc_otros: '',
-  // Sección 7
   declaraciones_aceptadas: false,
 }
 const AML_VACIO = {
@@ -101,7 +91,24 @@ const DECLARACIONES_KYC = [
   'Acepta los términos de confidencialidad y uso de información establecidos por la empresa.',
 ]
 
-// ───────── Overlay (fuera del componente para no perder el foco) ─────────
+type KycState = typeof KYC_VACIO
+type AmlState = typeof AML_VACIO
+
+// ───────── helpers ─────────
+function esc(v: unknown): string {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+function money(v: unknown): string {
+  const n = Number(v)
+  if (!v || isNaN(n)) return ''
+  return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function siNo(v: string): string {
+  if (v === 'si') return 'Sí'
+  if (v === 'no') return 'No'
+  return '—'
+}
+
 function Overlay({ children, maxW = 620, onBackdrop }: { children: React.ReactNode; maxW?: number; onBackdrop: () => void }) {
   return (
     <div
@@ -113,6 +120,187 @@ function Overlay({ children, maxW = 620, onBackdrop }: { children: React.ReactNo
       </div>
     </div>
   )
+}
+
+// ───────── Generador del PDF del paquete (KYC 7 secciones + AML/PLD) ─────────
+function generarPaquetePDF(opts: {
+  prospectoFolio: string
+  folioApartado: string
+  kyc: KycState
+  aml: AmlState
+}): boolean {
+  const { prospectoFolio, folioApartado, kyc, aml } = opts
+  const fechaDoc = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })
+  const folioKYC = 'KYC-' + folioApartado.replace('APT-', '')
+  const folioPLD = 'PLD-' + folioApartado.replace('APT-', '')
+
+  const fila = (lbl: string, val: string) =>
+    `<tr><td class="lbl">${lbl}</td><td class="val${val ? '' : ' empty'}">${esc(val) || '—'}</td></tr>`
+  const check = (b: boolean, txt: string) =>
+    `<div class="item"><span class="mark">${b ? '☑' : '☐'}</span><span>${txt}</span></div>`
+
+  const membrete = `
+    <div class="membrete">
+      <div class="empresa">DIIPA · Inmuebles Accesibles</div>
+      <div class="razon">Desarrollos Inteligentes de Inmuebles y Propiedades Accesibles, S.A. de C.V.</div>
+    </div>`
+  const titulo = (t: string, sub: string, folio: string) => `
+    <div class="titulo">
+      <div class="t">${t}</div>
+      <div class="sub">${sub}</div>
+      <div class="folio">Folio: ${folio}</div>
+    </div>`
+  const firmas = (rolDer: string) => `
+    <div class="firmas">
+      <div class="firma"><div class="linea">${esc(kyc.nombre) || '_____________________'}</div><div class="rol">Firma del cliente</div></div>
+      <div class="firma"><div class="linea">${rolDer}</div><div class="rol">DIIPA · Inmuebles Accesibles</div></div>
+    </div>`
+
+  // ── PÁGINA 1 · KYC (7 secciones) ──
+  const paginaKyc = `
+    ${membrete}
+    ${titulo('Formato KYC', 'Conoce a tu Cliente · Identificación y debida diligencia', folioKYC)}
+    <div class="exp">Expediente del prospecto: <strong>${esc(prospectoFolio)}</strong> · Apartado: <strong>${esc(folioApartado)}</strong></div>
+
+    <div class="seccion"><h2>1 · Datos generales del cliente</h2><table>
+      ${fila('Nombre completo', kyc.nombre)}
+      ${fila('Fecha de nacimiento', kyc.fecha_nacimiento)}
+      ${fila('CURP', kyc.curp)}
+      ${fila('RFC', kyc.rfc)}
+      ${fila('Nacionalidad', kyc.nacionalidad)}
+      ${fila('Estado civil', kyc.estado_civil)}
+      ${fila('Ocupación / Actividad', kyc.ocupacion)}
+      ${fila('Teléfono', kyc.telefono)}
+      ${fila('Correo electrónico', kyc.correo)}
+    </table></div>
+
+    <div class="seccion"><h2>2 · Domicilio del cliente</h2><table>
+      ${fila('Calle y número', kyc.calle)}
+      ${fila('Colonia', kyc.colonia)}
+      ${fila('Municipio / Ciudad', kyc.municipio)}
+      ${fila('Estado', kyc.estado)}
+      ${fila('Código postal', kyc.cp)}
+    </table></div>
+
+    <div class="seccion"><h2>3 · Identificación oficial</h2><table>
+      ${fila('Tipo de identificación', kyc.id_tipo)}
+      ${fila('Número / folio', kyc.id_numero)}
+      ${fila('Vigencia', kyc.id_vigencia)}
+    </table></div>
+
+    <div class="seccion"><h2>4 · Información financiera y origen de recursos</h2><table>
+      ${fila('Origen de los recursos', kyc.origen_recursos)}
+      ${fila('Monto destinado a la operación', money(kyc.monto_operacion))}
+      ${fila('Comprende respaldo por contrato', siNo(kyc.comprende_respaldo_contrato))}
+      ${fila('Comprende derecho a devolución', siNo(kyc.comprende_devolucion))}
+    </table></div>
+
+    <div class="seccion"><h2>5 · Perfil y objetivo de la operación</h2><table>
+      ${fila('Objetivo principal del cliente', kyc.objetivo_operacion)}
+      ${fila('Entiende diligencia sin fecha fija', siNo(kyc.entiende_diligencia_sin_fecha))}
+      ${fila('Entiende garantía contingente / pagos por etapas', siNo(kyc.entiende_garantia_contingente))}
+    </table></div>
+
+    <div class="seccion"><h2>6 · Documentación entregada</h2><div class="checks">
+      ${DOCS.map((d) => check(kyc[d.campo] as boolean, d.label)).join('')}
+      ${kyc.doc_otros ? `<div class="item"><span class="mark">☑</span><span>Otros: ${esc(kyc.doc_otros)}</span></div>` : ''}
+    </div></div>
+
+    <div class="seccion"><h2>7 · Declaraciones del cliente</h2><div class="checks">
+      ${DECLARACIONES_KYC.map((d) => check(kyc.declaraciones_aceptadas, d)).join('')}
+    </div></div>
+
+    <div class="protesta"><strong>Declaración bajo protesta de decir verdad.</strong> El cliente manifiesta que los datos asentados en el presente formato son ciertos, completos y comprobables, conforme a la <strong>Ley Federal para la Prevención e Identificación de Operaciones con Recursos de Procedencia Ilícita (LFPIORPI)</strong> y a las políticas internas de DIIPA · Inmuebles Accesibles.</div>
+    ${firmas('Asesor DIIPA')}
+    <div class="watermark">KYC</div>`
+
+  // ── PÁGINA 2 · AML/PLD ──
+  const paginaAml = `
+    ${membrete}
+    ${titulo('Formato AML / PLD', 'Prevención de lavado de dinero · LFPIORPI', folioPLD)}
+    <div class="exp">Expediente del prospecto: <strong>${esc(prospectoFolio)}</strong> · Apartado: <strong>${esc(folioApartado)}</strong></div>
+
+    <div class="seccion"><h2>1 · Identificación del cliente</h2><table>
+      ${fila('Nombre completo', kyc.nombre)}
+      ${fila('CURP', kyc.curp)}
+      ${fila('RFC', kyc.rfc)}
+      ${fila('Teléfono', kyc.telefono)}
+    </table></div>
+
+    <div class="seccion"><h2>2 · Perfil transaccional</h2><table>
+      ${fila('Ingreso mensual aproximado', money(aml.ingreso_mensual))}
+      ${fila('Fuente principal de ingresos', aml.fuente_ingresos)}
+      ${fila('Monto de la inversión', money(aml.monto_inversion))}
+    </table></div>
+
+    <div class="seccion"><h2>3 · Información sobre la operación</h2><table>
+      ${fila('Forma de pago', aml.forma_pago)}
+      ${fila('Banco de origen', aml.banco_origen)}
+      ${fila('Titular de la cuenta', aml.titular_cuenta)}
+      ${fila('Propósito de la operación', aml.proposito)}
+    </table></div>
+
+    <div class="seccion"><h2>4 · Evaluación de riesgo (uso interno)</h2><table>
+      ${fila('Clasificación del cliente', aml.riesgo || 'No clasificado')}
+      ${fila('Motivos / notas', aml.riesgo_nota)}
+    </table></div>
+
+    <div class="seccion"><h2>5 · Declaraciones del cliente · AML/PLD</h2><div class="checks">
+      ${check(aml.recursos_licitos, 'Los recursos provienen de actividades lícitas.')}
+      ${check(aml.actua_cuenta_propia, 'El cliente actúa por cuenta propia.')}
+      ${check(aml.decl_licitos, 'Recursos lícitos — declarado bajo protesta de decir verdad.')}
+      ${check(aml.decl_no_lavado, 'No participa en lavado de dinero ni en financiamiento al terrorismo.')}
+      ${check(aml.decl_veraz, 'Información veraz, completa y comprobable.')}
+      ${check(aml.decl_reporte, 'Acepta que la empresa reporte operaciones cuando la ley lo exija.')}
+    </div></div>
+
+    <div class="protesta"><strong>Manifestación de cumplimiento normativo.</strong> El cliente declara, bajo protesta de decir verdad, que los recursos destinados a la presente operación provienen de actividades lícitas, y acepta las obligaciones de identificación, registro y reporte previstas en la <strong>LFPIORPI</strong>, su Reglamento y las Reglas de Carácter General de la S.H.C.P.</div>
+    ${firmas('Oficial de Cumplimiento')}
+    <div class="watermark">PLD</div>`
+
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Paquete Apartado · ${esc(folioApartado)}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#0f172a;margin:0;padding:36px 44px;font-size:10.5pt;line-height:1.5}
+  .membrete{border-bottom:2px solid #0c4a6e;padding-bottom:8px;margin-bottom:14px}
+  .membrete .empresa{font-size:15pt;font-weight:800;color:#0c4a6e;letter-spacing:.5px}
+  .membrete .razon{font-size:8.5pt;color:#5b6577}
+  .titulo{margin-bottom:8px}
+  .titulo .t{font-size:14pt;font-weight:800;color:#042c53}
+  .titulo .sub{font-size:9pt;color:#5b6577}
+  .titulo .folio{font-size:9pt;font-family:monospace;font-weight:700;color:#0c4a6e;margin-top:2px}
+  .exp{font-size:9pt;color:#5b6577;text-align:right;margin-bottom:10px}
+  .seccion{margin-bottom:12px}
+  .seccion h2{font-size:10pt;font-weight:700;color:#0c4a6e;background:#eef7ff;padding:5px 9px;border-radius:5px;margin:0 0 6px}
+  table{width:100%;border-collapse:collapse}
+  td.lbl{width:42%;padding:5px 9px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:600;color:#475569;font-size:9.5pt}
+  td.val{padding:5px 9px;border:1px solid #e2e8f0;font-size:9.5pt}
+  td.val.empty{color:#cbd5e1}
+  .checks{display:flex;flex-direction:column;gap:4px}
+  .item{display:flex;gap:7px;align-items:flex-start;font-size:9.5pt}
+  .mark{font-size:11pt;line-height:1}
+  .protesta{font-size:8.5pt;color:#475569;background:#f8fafc;border-left:3px solid #0c4a6e;padding:9px 12px;border-radius:4px;margin:14px 0;text-align:justify}
+  .firmas{display:flex;justify-content:space-between;margin-top:42px;gap:40px}
+  .firma{flex:1;text-align:center}
+  .firma .linea{border-top:1px solid #0f172a;padding-top:5px;font-weight:600;font-size:9.5pt}
+  .firma .rol{font-size:8pt;color:#5b6577;margin-top:2px}
+  .watermark{position:fixed;bottom:30px;right:40px;font-size:40pt;font-weight:800;color:rgba(12,74,110,.05);letter-spacing:4px}
+  .page-break{page-break-before:always}
+  .pie{margin-top:20px;border-top:1px solid #e2e8f0;padding-top:8px;font-size:8pt;color:#94a3b8;text-align:center}
+  @media print{body{padding:0}.watermark{position:fixed}}
+</style></head><body>
+  ${paginaKyc}
+  <div class="page-break"></div>
+  ${paginaAml}
+  <div class="pie">Documento generado por SIGA-DIIPA · ${fechaDoc} · Paquete Apartado ${esc(folioApartado)} · KYC ${folioKYC} · PLD ${folioPLD} · Uso interno confidencial</div>
+  <script>window.onload=function(){window.print()}</script>
+</body></html>`
+
+  const win = window.open('', '_blank')
+  if (!win) return false
+  win.document.write(html)
+  win.document.close()
+  return true
 }
 
 export default function ModalAvanzarEtapa4({
@@ -143,6 +331,12 @@ export default function ModalAvanzarEtapa4({
   const [kycHecho, setKycHecho] = useState(false)
   const [amlHecho, setAmlHecho] = useState(false)
 
+  // Pasos 4-6
+  const [descargado, setDescargado] = useState(false)
+  const [archivoFirmado, setArchivoFirmado] = useState<{ path: string; nombre: string } | null>(null)
+  const [subiendo, setSubiendo] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+
   const [kyc, setKyc] = useState({ ...KYC_VACIO })
   const [aml, setAml] = useState({ ...AML_VACIO })
   const [guardandoForm, setGuardandoForm] = useState(false)
@@ -161,6 +355,8 @@ export default function ModalAvanzarEtapa4({
     setFolioApartado('')
     setKycHecho(false)
     setAmlHecho(false)
+    setDescargado(false)
+    setArchivoFirmado(null)
     setKyc({ ...KYC_VACIO })
     setAml({ ...AML_VACIO })
 
@@ -214,7 +410,7 @@ export default function ModalAvanzarEtapa4({
 
     const { data: apt } = await supabase
       .from('apartados')
-      .select('id, folio, garantia_id, monto_apartado')
+      .select('id, folio, garantia_id, monto_apartado, comprobante_subido')
       .eq('prospecto_id', prospectoId)
       .order('id', { ascending: false })
       .limit(1)
@@ -324,8 +520,7 @@ export default function ModalAvanzarEtapa4({
     setGuardandoForm(true)
     const ahora = new Date().toISOString()
     const fila = {
-      apartado_id: apartadoId,
-      nombre, curp, rfc,
+      apartado_id: apartadoId, nombre, curp, rfc,
       fecha_nacimiento: kyc.fecha_nacimiento || null,
       nacionalidad: kyc.nacionalidad.trim() || null,
       estado_civil: kyc.estado_civil || null,
@@ -361,6 +556,7 @@ export default function ModalAvanzarEtapa4({
     if (error) { alert('Error al guardar KYC: ' + error.message); return }
     setKyc({ ...kyc, curp, rfc, nombre })
     setKycHecho(true)
+    setDescargado(false) // si edita, debe volver a descargar
     setVista('roadmap')
   }
 
@@ -394,7 +590,77 @@ export default function ModalAvanzarEtapa4({
     setGuardandoForm(false)
     if (error) { alert('Error al guardar AML/PLD: ' + error.message); return }
     setAmlHecho(true)
+    setDescargado(false)
     setVista('roadmap')
+  }
+
+  // PASO 4 · Descargar paquete
+  function descargarPaquete() {
+    if (!kycHecho || !amlHecho) { alert('⚠ Completa primero KYC y AML/PLD.'); return }
+    const ok = generarPaquetePDF({ prospectoFolio, folioApartado, kyc, aml })
+    if (!ok) { alert('⚠ El navegador bloqueó la ventana. Permite las ventanas emergentes para descargar el paquete.'); return }
+    setDescargado(true)
+  }
+
+  // PASO 5 · Subir paquete firmado
+  async function subirFirmado(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files && e.target.files[0]
+    if (!file || !apartadoId) return
+    setSubiendo(true)
+    const ext = (file.name.split('.').pop() || 'pdf').toLowerCase()
+    const path = `${prospectoId}/apartado/${folioApartado}-paquete.${ext}`
+    const { error } = await supabase.storage.from('documentos-prospectos').upload(path, file, { upsert: true })
+    if (error) {
+      setSubiendo(false)
+      alert('❌ No se pudo subir: ' + error.message)
+      e.target.value = ''
+      return
+    }
+    await supabase.from('apartados').update({ comprobante_subido: true, actualizado_en: new Date().toISOString() }).eq('id', apartadoId)
+    setArchivoFirmado({ path, nombre: file.name })
+    setSubiendo(false)
+  }
+
+  // PASO 6 · Solicitar carta a Jurídico → avanza a etapa 5
+  async function solicitarCarta() {
+    if (!apartadoId || !descargado || !archivoFirmado) {
+      alert('🚫 Faltan pasos. Descarga el paquete y sube el firmado antes de solicitar la carta.')
+      return
+    }
+    if (!confirm('📨 Solicitar Carta de Apartado\n\nSe enviará la solicitud al Departamento Jurídico con todos los datos (KYC + AML/PLD + paquete firmado) y el prospecto se convertirá en Cliente DIIPA (etapa 5).\n\n¿Confirmas?')) return
+
+    setEnviando(true)
+    const { data: auth } = await supabase.auth.getUser()
+    const usuario = auth.user?.email || 'Sistema'
+    const ahora = new Date().toISOString()
+
+    // Marca el apartado como enviado a Jurídico
+    const { error: errA } = await supabase
+      .from('apartados')
+      .update({ estatus: 'confirmado', actualizado_en: ahora })
+      .eq('id', apartadoId)
+    if (errA) { setEnviando(false); alert('Error al actualizar el apartado: ' + errA.message); return }
+
+    // Avanza el prospecto a etapa 5 + estatus cliente
+    const { error: errP } = await supabase
+      .from('prospectos')
+      .update({ etapa: 5, estatus: 'cliente', actualizado_en: ahora })
+      .eq('id', prospectoId)
+    if (errP) { setEnviando(false); alert('Error al avanzar el prospecto: ' + errP.message); return }
+
+    // Historial
+    await supabase.from('prospecto_historial').insert({
+      prospecto_id: prospectoId,
+      etapa_desde: 4,
+      etapa_hasta: 5,
+      descripcion: `[Carta solicitada a Jurídico] Apartado ${folioApartado} · KYC + AML/PLD + paquete firmado enviados · Convertido a Cliente DIIPA`,
+      creado_por: usuario,
+    })
+
+    setEnviando(false)
+    onGuardado()
+    alert('✅ Solicitud enviada al Departamento Jurídico.\n\nEl prospecto ahora es Cliente DIIPA (etapa 5).')
+    onCerrar()
   }
 
   if (!abierto) return null
@@ -414,7 +680,6 @@ export default function ModalAvanzarEtapa4({
     fontSize: '9.5px', fontWeight: 700, color, textTransform: 'uppercase', marginBottom: '8px',
   })
 
-  // Botones Sí/No tipo píldora (respeta el formato de Paola)
   function SiNo({ valor, onChange }: { valor: string; onChange: (v: string) => void }) {
     const pill = (activo: boolean, color: string): React.CSSProperties => ({
       flex: 1, fontSize: '10.5px', fontWeight: 700, padding: '7px 0', borderRadius: '6px',
@@ -439,7 +704,6 @@ export default function ModalAvanzarEtapa4({
           <div style={{ fontSize: '13px', fontWeight: 700 }}>{prospectoNombre} · {prospectoFolio}</div>
         </div>
         <div style={{ padding: '20px', fontFamily: 'Sora, sans-serif', maxHeight: '72vh', overflowY: 'auto' }}>
-          {/* 1. Datos generales */}
           <div style={secStyle('#eef7ff', '#B5D4F4')}>
             <div style={secTitulo('#185FA5')}>1. Datos generales del cliente</div>
             <div style={grid3}>
@@ -459,7 +723,6 @@ export default function ModalAvanzarEtapa4({
             </div>
           </div>
 
-          {/* 2. Domicilio */}
           <div style={secStyle('#F4F6FB', '#C8D0E0')}>
             <div style={secTitulo('#4A5272')}>2. Domicilio del cliente</div>
             <div style={grid3}>
@@ -473,7 +736,6 @@ export default function ModalAvanzarEtapa4({
             </div>
           </div>
 
-          {/* 3. Identificación oficial */}
           <div style={secStyle('#F4F6FB', '#C8D0E0')}>
             <div style={secTitulo('#4A5272')}>3. Identificación oficial</div>
             <div style={{ ...grid3, marginBottom: 0 }}>
@@ -483,7 +745,6 @@ export default function ModalAvanzarEtapa4({
             </div>
           </div>
 
-          {/* 4. Información financiera y origen de recursos */}
           <div style={secStyle('#fef3c7', '#fde68a')}>
             <div style={secTitulo('#92400e')}>4. Información financiera y origen de recursos</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
@@ -500,7 +761,6 @@ export default function ModalAvanzarEtapa4({
             </div>
           </div>
 
-          {/* 5. Perfil y objetivo de la operación */}
           <div style={secStyle('#eef7ff', '#B5D4F4')}>
             <div style={secTitulo('#185FA5')}>5. Perfil y objetivo de la operación</div>
             <div style={{ marginBottom: '8px' }}>
@@ -508,16 +768,15 @@ export default function ModalAvanzarEtapa4({
               <select value={kyc.objetivo_operacion} onChange={(e) => setKyc({ ...kyc, objetivo_operacion: e.target.value })} style={{ ...inputBase, background: '#fff' }}>{OBJETIVOS.map((o) => <option key={o} value={o}>{o || '— Seleccionar —'}</option>)}</select>
             </div>
             <div style={{ marginBottom: '8px' }}>
-              <label style={labelMini}>Entiende que la empresa gestiona con diligencia (compromiso de medios), SIN garantizar fecha específica de entrega</label>
+              <label style={labelMini}>Entiende que la empresa gestiona con diligencia, SIN garantizar fecha específica de entrega</label>
               <SiNo valor={kyc.entiende_diligencia_sin_fecha} onChange={(v) => setKyc({ ...kyc, entiende_diligencia_sin_fecha: v })} />
             </div>
             <div>
-              <label style={labelMini}>Entiende que la operación es sobre una garantía CONTINGENTE (sujeta a proceso judicial) y que los pagos son por etapas</label>
+              <label style={labelMini}>Entiende que es una garantía CONTINGENTE (sujeta a proceso judicial) y que los pagos son por etapas</label>
               <SiNo valor={kyc.entiende_garantia_contingente} onChange={(v) => setKyc({ ...kyc, entiende_garantia_contingente: v })} />
             </div>
           </div>
 
-          {/* 6. Documentación entregada */}
           <div style={secStyle('#F4F6FB', '#C8D0E0')}>
             <div style={secTitulo('#4A5272')}>6. Documentación entregada</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 14px' }}>
@@ -534,7 +793,6 @@ export default function ModalAvanzarEtapa4({
             </div>
           </div>
 
-          {/* 7. Declaraciones del cliente */}
           <div style={secStyle('#F4F6FB', '#C8D0E0')}>
             <div style={secTitulo('#4A5272')}>7. Declaraciones del cliente</div>
             <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.5, marginBottom: '10px' }}>
@@ -560,7 +818,7 @@ export default function ModalAvanzarEtapa4({
 
   // ═════════ VISTA AML/PLD ═════════
   if (vista === 'aml') {
-    const chk = (campo: keyof typeof aml, texto: string) => (
+    const chk = (campo: keyof AmlState, texto: string) => (
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', cursor: 'pointer' }}>
         <input type="checkbox" checked={aml[campo] as boolean} onChange={(e) => setAml({ ...aml, [campo]: e.target.checked })} style={{ marginTop: '2px', width: '14px', height: '14px', cursor: 'pointer' }} />
         <span>✓ {texto}</span>
@@ -635,7 +893,7 @@ export default function ModalAvanzarEtapa4({
   const paso1Hecho = apartadoId !== null
 
   return (
-    <Overlay maxW={620} onBackdrop={() => { if (!creando) onCerrar() }}>
+    <Overlay maxW={620} onBackdrop={() => { if (!creando && !enviando) onCerrar() }}>
       <div style={{ padding: '18px 22px', background: 'linear-gradient(135deg,#0c4a6e,#1e40af)', color: '#fff' }}>
         <div style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '1px', opacity: .85, marginBottom: '3px' }}>📝 ETAPA 4 · PRE-CLIENTE · KYC / AML / PLD / CARTA</div>
         <div style={{ fontSize: '14px', fontWeight: 700 }}>{prospectoNombre} · {prospectoFolio}</div>
@@ -680,16 +938,40 @@ export default function ModalAvanzarEtapa4({
                 let hecho = false
                 let activo = false
                 let accion: (() => void) | null = null
+                let etiquetaBtn = 'Llenar'
+
                 if (p.n === 1) hecho = paso1Hecho
-                if (p.n === 2) { hecho = kycHecho; activo = paso1Hecho; if (paso1Hecho) accion = () => setVista('kyc') }
-                if (p.n === 3) { hecho = amlHecho; activo = kycHecho; if (kycHecho) accion = () => setVista('aml') }
-                const desbloqueado = p.n <= 3
+                if (p.n === 2) { hecho = kycHecho; activo = paso1Hecho; if (paso1Hecho) accion = () => setVista('kyc'); etiquetaBtn = hecho ? '✏️ Editar' : 'Llenar' }
+                if (p.n === 3) { hecho = amlHecho; activo = kycHecho; if (kycHecho) accion = () => setVista('aml'); etiquetaBtn = hecho ? '✏️ Editar' : 'Llenar' }
+                if (p.n === 4) { hecho = descargado; activo = kycHecho && amlHecho; if (activo) accion = descargarPaquete; etiquetaBtn = hecho ? '📄 Re-descargar' : '📄 Descargar' }
+                if (p.n === 6) { activo = !!archivoFirmado; if (activo) accion = solicitarCarta; etiquetaBtn = enviando ? 'Enviando…' : '📨 Solicitar' }
+
+                // Paso 5 es un input file especial
+                if (p.n === 5) {
+                  const activo5 = descargado
+                  const hecho5 = !!archivoFirmado
+                  return (
+                    <div key={p.n} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 11px', background: hecho5 ? '#dcfce7' : '#fff', border: `1.5px solid ${hecho5 ? '#86efac' : '#cbd5e1'}`, borderRadius: '8px', marginBottom: '7px', opacity: activo5 || hecho5 ? 1 : 0.5 }}>
+                      <span style={{ fontSize: '14px' }}>{hecho5 ? '✅' : p.icon}</span>
+                      <div style={{ flex: 1, fontSize: '11px', color: '#475569' }}>
+                        <strong>Paso {p.n}.</strong> {p.label}
+                        {archivoFirmado && <div style={{ fontSize: '10px', color: '#15803d', marginTop: '2px' }}>{archivoFirmado.nombre.substring(0, 32)}</div>}
+                      </div>
+                      <label style={{ fontSize: '10px', fontWeight: 700, padding: '6px 12px', borderRadius: '7px', fontFamily: 'Sora, sans-serif', whiteSpace: 'nowrap', background: activo5 && !hecho5 ? 'linear-gradient(135deg,#7c2d12,#c2410c)' : hecho5 ? '#16a34a' : '#cbd5e1', color: activo5 || hecho5 ? '#fff' : '#64748b', cursor: activo5 && !subiendo ? 'pointer' : 'not-allowed', pointerEvents: activo5 && !subiendo ? 'auto' : 'none' }}>
+                        <span>{subiendo ? '⏳ Subiendo…' : hecho5 ? '✅ Subido' : '📤 Subir'}</span>
+                        <input type="file" accept=".pdf,image/*" onChange={subirFirmado} disabled={!activo5 || subiendo} style={{ display: 'none' }} />
+                      </label>
+                    </div>
+                  )
+                }
+
+                const desbloqueado = p.n <= 6
                 return (
                   <div key={p.n} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 11px', background: hecho ? '#dcfce7' : '#fff', border: `1.5px solid ${hecho ? '#86efac' : '#cbd5e1'}`, borderRadius: '8px', marginBottom: '7px', opacity: activo || hecho ? 1 : 0.5 }}>
                     <span style={{ fontSize: '14px' }}>{hecho ? '✅' : p.icon}</span>
                     <div style={{ flex: 1, fontSize: '11px', color: '#475569' }}><strong>Paso {p.n}.</strong> {p.label}</div>
                     {accion ? (
-                      <button onClick={accion} style={{ fontSize: '10px', fontWeight: 700, padding: '6px 12px', borderRadius: '7px', border: 'none', background: hecho ? '#16a34a' : (p.n === 2 ? 'linear-gradient(135deg,#0c4a6e,#1e40af)' : 'linear-gradient(135deg,#8B1A1A,#b91c1c)'), color: '#fff', cursor: 'pointer', fontFamily: 'Sora, sans-serif', whiteSpace: 'nowrap' }}>{hecho ? '✏️ Editar' : 'Llenar'}</button>
+                      <button onClick={accion} disabled={enviando} style={{ fontSize: '10px', fontWeight: 700, padding: '6px 12px', borderRadius: '7px', border: 'none', background: hecho ? '#16a34a' : (p.n === 2 ? 'linear-gradient(135deg,#0c4a6e,#1e40af)' : p.n === 3 ? 'linear-gradient(135deg,#8B1A1A,#b91c1c)' : p.n === 4 ? 'linear-gradient(135deg,#1e40af,#3b82f6)' : 'linear-gradient(135deg,#15803d,#22c55e)'), color: '#fff', cursor: enviando ? 'not-allowed' : 'pointer', fontFamily: 'Sora, sans-serif', whiteSpace: 'nowrap' }}>{etiquetaBtn}</button>
                     ) : !desbloqueado ? (
                       <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', background: '#eef1f5', padding: '3px 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}>PRÓXIMAMENTE</span>
                     ) : (
@@ -701,7 +983,7 @@ export default function ModalAvanzarEtapa4({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <button onClick={onCerrar} disabled={creando} style={{ fontSize: '11px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', cursor: 'pointer', fontFamily: 'Sora, sans-serif' }}>Cerrar</button>
+              <button onClick={onCerrar} disabled={creando || enviando} style={{ fontSize: '11px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', cursor: 'pointer', fontFamily: 'Sora, sans-serif' }}>Cerrar</button>
             </div>
           </>
         )}
