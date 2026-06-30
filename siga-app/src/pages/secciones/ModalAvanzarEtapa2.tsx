@@ -16,10 +16,10 @@ import { supabase } from '../../lib/supabase'
    Solo cambia el campo `direccion` de cada una; nada más se toca.
    ──────────────────────────────────────────────────────────────────── */
 const SUCURSALES = [
-  { id: 'mazatlan',    nombre: 'Mazatlán',    direccion: '(dirección pendiente — Elizabeth)' },
-  { id: 'guadalajara', nombre: 'Guadalajara', direccion: '(dirección pendiente — Elizabeth)' },
-  { id: 'culiacan',    nombre: 'Culiacán',    direccion: '(dirección pendiente — Elizabeth)' },
-  { id: 'lapaz',       nombre: 'La Paz',      direccion: '(dirección pendiente — Elizabeth)' },
+  { id: 'mazatlan',    nombre: 'Mazatlán',    direccion: '(Av. Santa Rosa Col. Federico Velarde no. 15 mazatlán Sinaloa)' },
+  { id: 'guadalajara', nombre: 'Guadalajara', direccion: '(Agustín Yañez 2583 colonia Arcos Vallarta en el edificio JDB )' },
+  { id: 'culiacan',    nombre: 'Culiacán',    direccion: '(Blvd Enrique Sánchez Alonso plaza #255 local 29 desarrollo urbano 3 ríos)' },
+  { id: 'lapaz',       nombre: 'La Paz',      direccion: '(5 de febrero esquina con Josefa Ortiz de Domínguez plaza san Diego local 4)' },
 ]
 
 const TIPOS_CITA = [
