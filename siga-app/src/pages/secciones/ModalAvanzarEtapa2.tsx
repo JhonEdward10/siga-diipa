@@ -1,12 +1,33 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
- 
+
 /* ════════════════════════════════════════════════════════════════════
    MODAL ETAPA 1 → 2 · Agendar cita + vincular garantías
    Migrado de prosModalAvanzarEtapa2 (legacy SIGA-DIIPA)
    Doble función: AVANZAR (etapa 1) o EDITAR vínculos (etapa >= 2)
+
+   ✦ Tipo de cita: Oficina / Visita en inmueble / Videollamada
+     - Oficina → selector de sucursal (OBLIGATORIO)
+     - Detalle libre siempre disponible (link, dirección del inmueble, etc.)
    ════════════════════════════════════════════════════════════════════ */
- 
+
+/* ────────────────────────────────────────────────────────────────────
+   SUCURSALES · editar aquí cuando Elizabeth pase las direcciones reales.
+   Solo cambia el campo `direccion` de cada una; nada más se toca.
+   ──────────────────────────────────────────────────────────────────── */
+const SUCURSALES = [
+  { id: 'mazatlan',    nombre: 'Mazatlán',    direccion: '(dirección pendiente — Elizabeth)' },
+  { id: 'guadalajara', nombre: 'Guadalajara', direccion: '(dirección pendiente — Elizabeth)' },
+  { id: 'culiacan',    nombre: 'Culiacán',    direccion: '(dirección pendiente — Elizabeth)' },
+  { id: 'lapaz',       nombre: 'La Paz',      direccion: '(dirección pendiente — Elizabeth)' },
+]
+
+const TIPOS_CITA = [
+  { id: 'oficina',      label: '🏢 En oficina',         detalleLabel: 'Detalle adicional (opcional)', placeholder: 'Ej. Sala de juntas, piso 2…' },
+  { id: 'inmueble',     label: '🏠 Visita en inmueble', detalleLabel: 'Dirección del inmueble *',      placeholder: 'Ej. GAR-0005 · Av. Reforma 123, Col. Centro' },
+  { id: 'videollamada', label: '💻 Videollamada',       detalleLabel: 'Enlace de la videollamada *',   placeholder: 'Ej. https://meet.google.com/xxx-xxxx' },
+]
+
 type GarantiaDisponible = {
   id: number
   folio: string
@@ -17,7 +38,7 @@ type GarantiaDisponible = {
   precio_piso: number | null
   valor_estimado: number | null
 }
- 
+
 type Props = {
   prospectoId: number
   prospectoNombre: string
@@ -26,7 +47,7 @@ type Props = {
   onCerrar: () => void
   onGuardado: () => void
 }
- 
+
 export default function ModalAvanzarEtapa2({
   prospectoId,
   prospectoNombre,
@@ -36,92 +57,115 @@ export default function ModalAvanzarEtapa2({
   onGuardado,
 }: Props) {
   const esEdicion = etapaActual >= 2
- 
+
   const [disponibles, setDisponibles] = useState<GarantiaDisponible[]>([])
   const [seleccionadas, setSeleccionadas] = useState<number[]>([])
   const [cargando, setCargando] = useState(false)
   const [guardando, setGuardando] = useState(false)
- 
-  // Fecha mínima = hoy · default = mañana (igual que el legacy)
+
   const hoy = new Date()
   const manana = new Date()
   manana.setDate(hoy.getDate() + 1)
   const minDate = hoy.toISOString().slice(0, 10)
   const defaultDate = manana.toISOString().slice(0, 10)
- 
+
   const [fecha, setFecha] = useState(defaultDate)
   const [hora, setHora] = useState('10:00')
-  const [lugar, setLugar] = useState('')
- 
+  const [tipoCita, setTipoCita] = useState('oficina')
+  const [sucursal, setSucursal] = useState('')
+  const [lugar, setLugar] = useState('') // detalle libre → cita_lugar
+
   useEffect(() => {
     if (!abierto) return
     cargarDatos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abierto, prospectoId])
- 
+
   async function cargarDatos() {
     setCargando(true)
- 
-    // 1. Garantías disponibles = publicadas en catálogo y no eliminadas
-    //    (equivalente al _getGarantiasDisponibles() del legacy)
+
     const { data: gar } = await supabase
       .from('garantias')
       .select('id, folio, tipo_caso, direccion, m2_terreno, m2_construccion, precio_piso, valor_estimado')
       .eq('publicado_catalogo', true)
       .eq('eliminada', false)
       .order('folio', { ascending: true })
- 
-    // 2. Garantías ya vinculadas a este prospecto (para pre-marcarlas)
+
     const { data: vinc } = await supabase
       .from('prospecto_garantias')
       .select('garantia_id')
       .eq('prospecto_id', prospectoId)
- 
+
+    const { data: prosp } = await supabase
+      .from('prospectos')
+      .select('cita_tipo, cita_sucursal, cita_lugar')
+      .eq('id', prospectoId)
+      .maybeSingle()
+
     setDisponibles((gar as GarantiaDisponible[]) || [])
     setSeleccionadas((vinc || []).map((v) => v.garantia_id as number))
+    if (prosp) {
+      if (prosp.cita_tipo) setTipoCita(prosp.cita_tipo)
+      if (prosp.cita_sucursal) setSucursal(prosp.cita_sucursal)
+      if (prosp.cita_lugar) setLugar(prosp.cita_lugar)
+    }
     setCargando(false)
   }
- 
+
   function toggle(gid: number) {
     setSeleccionadas((prev) =>
       prev.includes(gid) ? prev.filter((x) => x !== gid) : [...prev, gid],
     )
   }
- 
+
+  const sucursalSel = SUCURSALES.find((s) => s.id === sucursal)
+
   async function guardar() {
     if (!fecha) { alert('⚠ La fecha de la cita es obligatoria.'); return }
     if (!hora) { alert('⚠ La hora de la cita es obligatoria.'); return }
- 
+
+    if (tipoCita === 'oficina' && !sucursal) {
+      alert('⚠ Selecciona la sucursal de la oficina.')
+      return
+    }
+    if (tipoCita === 'inmueble' && !lugar.trim()) {
+      alert('⚠ Indica la dirección del inmueble a visitar.')
+      return
+    }
+    if (tipoCita === 'videollamada' && !lugar.trim()) {
+      alert('⚠ Indica el enlace de la videollamada.')
+      return
+    }
+
     setGuardando(true)
- 
-    // Usuario actual para campos de auditoría
+
     const { data: auth } = await supabase.auth.getUser()
     const usuario = auth.user?.email || 'Sistema'
     const ahora = new Date().toISOString()
- 
-    // 1. Guardar la cita en el prospecto (+ avanzar etapa solo si NO es edición)
+
     const updateProspecto: Record<string, unknown> = {
       cita_fecha: fecha,
       cita_hora: hora,
+      cita_tipo: tipoCita,
+      cita_sucursal: tipoCita === 'oficina' ? sucursal : null,
       cita_lugar: lugar.trim() || null,
       cita_registrada_en: ahora,
       cita_registrada_por: usuario,
       actualizado_en: ahora,
     }
     if (!esEdicion) updateProspecto.etapa = 2
- 
+
     const { error: errP } = await supabase
       .from('prospectos')
       .update(updateProspecto)
       .eq('id', prospectoId)
- 
+
     if (errP) {
       setGuardando(false)
       alert('Error al guardar la cita: ' + errP.message)
       return
     }
- 
-    // 2. Sincronizar garantías vinculadas (reemplazo completo, como p.garantias = ids)
+
     await supabase.from('prospecto_garantias').delete().eq('prospecto_id', prospectoId)
     if (seleccionadas.length > 0) {
       const filas = seleccionadas.map((gid) => ({
@@ -136,14 +180,18 @@ export default function ModalAvanzarEtapa2({
         return
       }
     }
- 
-    // 3. Registrar en historial (timestamp + usuario, automático por la tabla)
+
+    const tipoLabel = TIPOS_CITA.find((t) => t.id === tipoCita)?.label.replace(/^[^\s]+\s/, '') || tipoCita
+    let lugarTexto = tipoLabel
+    if (tipoCita === 'oficina' && sucursalSel) lugarTexto += ' · ' + sucursalSel.nombre
+    if (lugar.trim()) lugarTexto += ' · ' + lugar.trim()
+
     const foliosSel = disponibles
       .filter((g) => seleccionadas.includes(g.id))
       .map((g) => g.folio)
-    let descripcion = 'Cita: ' + fecha + ' ' + hora + (lugar.trim() ? ' · ' + lugar.trim() : '')
+    let descripcion = 'Cita: ' + fecha + ' ' + hora + ' · ' + lugarTexto
     if (foliosSel.length > 0) descripcion += ' · Garantías: ' + foliosSel.join(', ')
- 
+
     await supabase.from('prospecto_historial').insert({
       prospecto_id: prospectoId,
       etapa_desde: esEdicion ? etapaActual : 1,
@@ -151,33 +199,25 @@ export default function ModalAvanzarEtapa2({
       descripcion: (esEdicion ? '[Editó vínculos] ' : '[Avanzó a Cita agendada] ') + descripcion,
       creado_por: usuario,
     })
- 
+
     setGuardando(false)
     onGuardado()
     onCerrar()
   }
- 
+
   if (!abierto) return null
- 
+
   const inputBase: React.CSSProperties = {
-    width: '100%',
-    padding: '9px 11px',
-    border: '1.5px solid #cbd5e1',
-    borderRadius: '8px',
-    fontSize: '12px',
-    fontFamily: 'Sora, sans-serif',
-    boxSizing: 'border-box',
+    width: '100%', padding: '9px 11px', border: '1.5px solid #cbd5e1',
+    borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', boxSizing: 'border-box',
   }
   const labelBase: React.CSSProperties = {
-    display: 'block',
-    fontSize: '10px',
-    color: '#64748b',
-    fontWeight: 600,
-    marginBottom: '4px',
-    textTransform: 'uppercase',
-    letterSpacing: '.4px',
+    display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 600,
+    marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '.4px',
   }
- 
+
+  const tipoActual = TIPOS_CITA.find((t) => t.id === tipoCita) || TIPOS_CITA[0]
+
   return (
     <div
       onClick={(e) => { if (e.target === e.currentTarget) onCerrar() }}
@@ -189,7 +229,6 @@ export default function ModalAvanzarEtapa2({
       }}
     >
       <div style={{ width: '100%', maxWidth: '600px', background: '#fff', borderRadius: '14px', boxShadow: '0 30px 70px -10px rgba(0,0,0,.5)', overflow: 'hidden' }}>
-        {/* Cabecera */}
         <div style={{ padding: '18px 22px', background: 'linear-gradient(135deg,#7c2d12,#c2410c)', color: '#fff' }}>
           <div style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '1px', opacity: .85, marginBottom: '3px' }}>
             📅 ETAPA 2 · CITA AGENDADA{esEdicion ? ' · EDITAR' : ''}
@@ -199,9 +238,8 @@ export default function ModalAvanzarEtapa2({
             {esEdicion ? 'Edita la cita y las garantías vinculadas' : 'Agenda la cita y vincula las garantías de interés'}
           </div>
         </div>
- 
+
         <div style={{ padding: '22px', fontFamily: 'Sora, sans-serif' }}>
-          {/* Datos de la cita */}
           <div style={{ marginBottom: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#0C2D58', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '.4px' }}>
               📅 Datos de la cita
@@ -216,18 +254,61 @@ export default function ModalAvanzarEtapa2({
                 <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} style={{ ...inputBase, fontFamily: 'monospace' }} />
               </div>
             </div>
-            <div style={{ marginTop: '8px' }}>
-              <label style={labelBase}>📍 Ubicación / Lugar de la cita</label>
+
+            {/* Tipo de cita */}
+            <div style={{ marginTop: '10px' }}>
+              <label style={labelBase}>📍 Tipo de cita *</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                {TIPOS_CITA.map((t) => {
+                  const on = tipoCita === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTipoCita(t.id)}
+                      style={{
+                        fontSize: '10.5px', fontWeight: 700, padding: '9px 4px', borderRadius: '8px',
+                        border: `1.5px solid ${on ? '#c2410c' : '#cbd5e1'}`,
+                        background: on ? '#fff7ed' : '#fff', color: on ? '#c2410c' : '#64748b',
+                        cursor: 'pointer', fontFamily: 'Sora, sans-serif',
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Sucursal (solo si oficina) */}
+            {tipoCita === 'oficina' && (
+              <div style={{ marginTop: '10px' }}>
+                <label style={labelBase}>🏢 Sucursal *</label>
+                <select value={sucursal} onChange={(e) => setSucursal(e.target.value)} style={{ ...inputBase, background: '#fff' }}>
+                  <option value="">— Selecciona sucursal —</option>
+                  {SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                </select>
+                {sucursalSel && (
+                  <div style={{ fontSize: '10px', color: '#64748b', fontStyle: 'italic', marginTop: '4px', padding: '6px 9px', background: '#f8fafc', borderRadius: '6px' }}>
+                    📍 {sucursalSel.direccion}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Detalle libre */}
+            <div style={{ marginTop: '10px' }}>
+              <label style={labelBase}>{tipoActual.detalleLabel}</label>
               <input
                 type="text"
                 value={lugar}
                 onChange={(e) => setLugar(e.target.value)}
-                placeholder="Ej. Oficina principal · Visita al inmueble · Videollamada"
+                placeholder={tipoActual.placeholder}
                 style={{ ...inputBase, fontSize: '11.5px' }}
               />
             </div>
           </div>
- 
+
           {/* Garantías de interés */}
           <div style={{ marginBottom: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#0C2D58', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '.4px' }}>
@@ -236,7 +317,7 @@ export default function ModalAvanzarEtapa2({
             <div style={{ fontSize: '10.5px', color: '#64748b', fontStyle: 'italic', marginBottom: '8px' }}>
               💡 Selecciona una o más garantías que le interesan al prospecto. Solo aparecen las publicadas en el Catálogo.
             </div>
- 
+
             <div style={{ maxHeight: '280px', overflowY: 'auto', padding: '4px' }}>
               {cargando ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '11.5px' }}>Cargando garantías...</div>
@@ -294,7 +375,7 @@ export default function ModalAvanzarEtapa2({
               )}
             </div>
           </div>
- 
+
           {/* Botones */}
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '14px' }}>
             <button
