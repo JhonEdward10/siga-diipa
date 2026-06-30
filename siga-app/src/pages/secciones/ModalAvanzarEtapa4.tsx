@@ -285,13 +285,13 @@ function generarPaquetePDF(opts: {
   .firma .linea{border-top:1px solid #0f172a;padding-top:5px;font-weight:600;font-size:9.5pt}
   .firma .rol{font-size:8pt;color:#5b6577;margin-top:2px}
   .watermark{position:fixed;bottom:30px;right:40px;font-size:40pt;font-weight:800;color:rgba(12,74,110,.05);letter-spacing:4px}
-  .page-break{page-break-before:always}
+  .page-break{break-before:page;page-break-before:always}
+  .pagina{break-inside:avoid-page}
   .pie{margin-top:20px;border-top:1px solid #e2e8f0;padding-top:8px;font-size:8pt;color:#94a3b8;text-align:center}
   @media print{body{padding:0}.watermark{position:fixed}}
 </style></head><body>
-  ${paginaKyc}
-  <div class="page-break"></div>
-  ${paginaAml}
+  <div class="pagina">${paginaKyc}</div>
+  <div class="pagina page-break">${paginaAml}</div>
   <div class="pie">Documento generado por SIGA-DIIPA · ${fechaDoc} · Paquete Apartado ${esc(folioApartado)} · KYC ${folioKYC} · PLD ${folioPLD} · Uso interno confidencial</div>
   <script>window.onload=function(){window.print()}</script>
 </body></html>`
