@@ -5,15 +5,14 @@ import { supabase } from '../../lib/supabase'
    MODAL ETAPA 2 → 3 · Registrar visita + flujo PDF de confidencialidad
    Migrado de prosModalAvanzarEtapa3 (legacy SIGA-DIIPA)
 
-   Flujo secuencial obligatorio (igual que el legacy):
-     1) Datos completos (fecha + garantías vistas) → desbloquea Descargar
-     2) Descargar el PDF de confidencialidad     → desbloquea Subir
-     3) Subir el PDF firmado                      → desbloquea Registrar
+   Flujo secuencial obligatorio:
+     1) Datos completos (fecha + garantías vistas + INE del cliente)
+     2) Descargar el PDF de confidencialidad → desbloquea Subir
+     3) Subir el PDF firmado                 → desbloquea Registrar
      4) Registrar → guarda visita y avanza a etapa 3
 
-   NOTA (versión 3a): el PDF de confidencialidad es una versión simple con
-   los datos reales del prospecto. El contrato oficial de 7 cláusulas +
-   firmantes con PIN se integra en la versión 3b.
+   ✦ INE del cliente: OBLIGATORIO (privado)
+   ✦ Audio de la cita: OPCIONAL, máx 50 MB (privado)
    ════════════════════════════════════════════════════════════════════ */
 
 type GarantiaVinc = {
@@ -38,6 +37,8 @@ const RESULTADOS = [
   { value: 'poco-interes', label: '😐 Poco interés · No le convence' },
   { value: 'no-interesado', label: '👎 No interesado · Cierra prospecto' },
 ]
+
+const MAX_AUDIO_MB = 50
 
 function resultadoLabel(v: string): string {
   const r = RESULTADOS.find((x) => x.value === v)
@@ -64,6 +65,12 @@ export default function ModalAvanzarEtapa3({
   const [notas, setNotas] = useState('')
   const [favorita, setFavorita] = useState<number | ''>('')
 
+  // INE (obligatorio) y audio (opcional)
+  const [ine, setIne] = useState<{ path: string; nombre: string } | null>(null)
+  const [subiendoIne, setSubiendoIne] = useState(false)
+  const [audio, setAudio] = useState<{ path: string; nombre: string } | null>(null)
+  const [subiendoAudio, setSubiendoAudio] = useState(false)
+
   // Estado del flujo secuencial
   const [descargado, setDescargado] = useState(false)
   const [archivo, setArchivo] = useState<{ path: string; nombre: string } | null>(null)
@@ -73,15 +80,15 @@ export default function ModalAvanzarEtapa3({
   useEffect(() => {
     if (!abierto) return
     cargarGarantias()
-    // reset del flujo al abrir
     setDescargado(false)
     setArchivo(null)
+    setIne(null)
+    setAudio(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abierto, prospectoId])
 
   async function cargarGarantias() {
     setCargando(true)
-    // Garantías vinculadas en etapa 2 (desde la tabla puente)
     const { data: pg } = await supabase
       .from('prospecto_garantias')
       .select('garantia_id')
@@ -96,7 +103,7 @@ export default function ModalAvanzarEtapa3({
         .order('folio', { ascending: true })
       const lista = (gar as GarantiaVinc[]) || []
       setGarantias(lista)
-      setVistas(lista.map((g) => g.id)) // por defecto todas marcadas (como el legacy)
+      setVistas(lista.map((g) => g.id))
     } else {
       setGarantias([])
       setVistas([])
@@ -110,12 +117,58 @@ export default function ModalAvanzarEtapa3({
     )
   }
 
-  const datosOk = !!fecha && vistas.length > 0
+  // Subir INE del cliente (obligatorio) — privado
+  async function subirIne(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files && e.target.files[0]
+    if (!file) return
+    setSubiendoIne(true)
+    const ext = (file.name.split('.').pop() || 'pdf').toLowerCase()
+    const path = `${prospectoId}/visita/ine-${folio}.${ext}`
+    const { error } = await supabase.storage.from('documentos-prospectos').upload(path, file, { upsert: true })
+    if (error) {
+      setSubiendoIne(false)
+      alert('❌ No se pudo subir el INE: ' + error.message)
+      e.target.value = ''
+      return
+    }
+    setIne({ path, nombre: file.name })
+    setSubiendoIne(false)
+  }
 
-  // PASO 1 · Generar y descargar el PDF (versión simple, vía impresión del navegador)
+  // Subir audio de la cita (opcional, máx 50 MB) — privado
+  async function subirAudio(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files && e.target.files[0]
+    if (!file) return
+    if (file.size > MAX_AUDIO_MB * 1024 * 1024) {
+      alert(`⚠ El audio supera los ${MAX_AUDIO_MB} MB.\n\nComprímelo o súbelo por otro medio (ej. Drive) y anota el enlace en las notas.`)
+      e.target.value = ''
+      return
+    }
+    setSubiendoAudio(true)
+    const ext = (file.name.split('.').pop() || 'mp3').toLowerCase()
+    const path = `${prospectoId}/visita/audio-${folio}.${ext}`
+    const { error } = await supabase.storage.from('documentos-prospectos').upload(path, file, { upsert: true })
+    if (error) {
+      setSubiendoAudio(false)
+      alert('❌ No se pudo subir el audio: ' + error.message)
+      e.target.value = ''
+      return
+    }
+    setAudio({ path, nombre: file.name })
+    setSubiendoAudio(false)
+  }
+
+  // datosOk ahora también exige el INE
+  const datosOk = !!fecha && vistas.length > 0 && !!ine
+
+  // PASO 1 · Generar y descargar el PDF
   function descargar() {
-    if (!datosOk) {
+    if (!fecha || vistas.length === 0) {
       alert('⚠ Completa la fecha y marca al menos una garantía que el prospecto vio.')
+      return
+    }
+    if (!ine) {
+      alert('⚠ Sube la copia del INE del cliente antes de continuar.')
       return
     }
     const garVistas = garantias.filter((g) => vistas.includes(g.id))
@@ -159,7 +212,7 @@ export default function ModalAvanzarEtapa3({
     setDescargado(true)
   }
 
-  // PASO 2 · Subir el PDF firmado al Storage privado
+  // PASO 2 · Subir el PDF firmado
   async function subir(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files && e.target.files[0]
     if (!file) return
@@ -181,6 +234,10 @@ export default function ModalAvanzarEtapa3({
 
   // PASO 3 · Registrar la visita y avanzar a etapa 3
   async function registrar() {
+    if (!ine) {
+      alert('🚫 Falta la copia del INE del cliente (obligatorio).')
+      return
+    }
     if (!descargado || !archivo) {
       alert('🚫 Faltan pasos.\n\nDebes: 1) Descargar el contrato · 2) Subirlo firmado.')
       return
@@ -190,7 +247,7 @@ export default function ModalAvanzarEtapa3({
     const usuario = auth.user?.email || 'Sistema'
     const ahora = new Date().toISOString()
 
-    // 1. Insertar la visita
+    // 1. Insertar la visita (+ INE y audio)
     const { data: vis, error: errV } = await supabase
       .from('visitas')
       .insert({
@@ -204,6 +261,10 @@ export default function ModalAvanzarEtapa3({
         contrato_nombre: archivo.nombre,
         contrato_subido_en: ahora,
         contrato_subido_por: usuario,
+        ine_path: ine.path,
+        ine_nombre: ine.nombre,
+        audio_path: audio?.path || null,
+        audio_nombre: audio?.nombre || null,
         registrada_por: usuario,
       })
       .select('id')
@@ -234,6 +295,7 @@ export default function ModalAvanzarEtapa3({
       descripcion:
         `[Visita registrada] ${fecha} · ${resultadoLabel(resultado)}` +
         (favFolio ? ` · Favorita: ${favFolio}` : '') +
+        (audio ? ' · con audio' : '') +
         ` · Folio: ${folio}`,
       creado_por: usuario,
     })
@@ -258,7 +320,6 @@ export default function ModalAvanzarEtapa3({
     textTransform: 'uppercase', letterSpacing: '.4px',
   }
 
-  // Estilos de fila de paso según estado
   function filaPaso(activo: boolean, hecho: boolean): React.CSSProperties {
     return {
       display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 11px',
@@ -325,6 +386,37 @@ export default function ModalAvanzarEtapa3({
             </div>
           </div>
 
+          {/* INE del cliente (obligatorio) + Audio (opcional) */}
+          <div style={{ marginBottom: '16px' }}>
+            <div style={tituloSec}>📎 Documentos de la cita</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {/* INE */}
+              <div style={{ padding: '11px', border: `1.5px solid ${ine ? '#86efac' : '#f0abac'}`, borderRadius: '8px', background: ine ? '#f0fdf4' : '#fef2f2' }}>
+                <div style={{ fontSize: '10.5px', fontWeight: 700, color: ine ? '#15803d' : '#b91c1c', marginBottom: '6px' }}>
+                  📄 Copia del INE del cliente *
+                </div>
+                <label style={{ display: 'inline-block', fontSize: '10.5px', fontWeight: 700, padding: '6px 12px', borderRadius: '7px', fontFamily: 'Sora, sans-serif', background: subiendoIne ? '#cbd5e1' : ine ? '#16a34a' : 'linear-gradient(135deg,#7c2d12,#c2410c)', color: '#fff', cursor: subiendoIne ? 'not-allowed' : 'pointer' }}>
+                  {subiendoIne ? '⏳ Subiendo…' : ine ? '🔄 Cambiar' : '📤 Subir INE'}
+                  <input type="file" accept=".pdf,image/*" onChange={subirIne} disabled={subiendoIne} style={{ display: 'none' }} />
+                </label>
+                {ine && <div style={{ fontSize: '9.5px', color: '#15803d', marginTop: '5px', wordBreak: 'break-all' }}>✅ {ine.nombre.substring(0, 28)}</div>}
+              </div>
+
+              {/* Audio */}
+              <div style={{ padding: '11px', border: '1.5px solid #cbd5e1', borderRadius: '8px', background: audio ? '#f0fdf4' : '#fff' }}>
+                <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                  🎙️ Audio de la cita <span style={{ fontWeight: 400, color: '#94a3b8' }}>(opcional)</span>
+                </div>
+                <label style={{ display: 'inline-block', fontSize: '10.5px', fontWeight: 700, padding: '6px 12px', borderRadius: '7px', fontFamily: 'Sora, sans-serif', background: subiendoAudio ? '#cbd5e1' : audio ? '#16a34a' : '#0C447C', color: '#fff', cursor: subiendoAudio ? 'not-allowed' : 'pointer' }}>
+                  {subiendoAudio ? '⏳ Subiendo…' : audio ? '🔄 Cambiar' : '📤 Subir audio'}
+                  <input type="file" accept="audio/*" onChange={subirAudio} disabled={subiendoAudio} style={{ display: 'none' }} />
+                </label>
+                {audio && <div style={{ fontSize: '9.5px', color: '#15803d', marginTop: '5px', wordBreak: 'break-all' }}>✅ {audio.nombre.substring(0, 28)}</div>}
+                <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '5px' }}>Máx {MAX_AUDIO_MB} MB</div>
+              </div>
+            </div>
+          </div>
+
           {/* Garantías que vio */}
           <div style={{ marginBottom: '16px' }}>
             <div style={tituloSec}>🏘️ Garantías que efectivamente vio ({garantias.length} vinculadas)</div>
@@ -381,7 +473,10 @@ export default function ModalAvanzarEtapa3({
             {/* Paso 1 */}
             <div style={filaPaso(datosOk, descargado)}>
               <span style={{ fontSize: '14px' }}>{descargado ? '✅' : '1️⃣'}</span>
-              <div style={{ flex: 1, fontSize: '11px', color: '#475569' }}><strong>Descargar</strong> Contrato de Confidencialidad</div>
+              <div style={{ flex: 1, fontSize: '11px', color: '#475569' }}>
+                <strong>Descargar</strong> Contrato de Confidencialidad
+                {!ine && <div style={{ fontSize: '9.5px', color: '#b91c1c', marginTop: '2px' }}>Falta subir el INE del cliente</div>}
+              </div>
               <button type="button" disabled={!datosOk} onClick={descargar} style={botonPaso(datosOk)}>📄 Descargar</button>
             </div>
 
