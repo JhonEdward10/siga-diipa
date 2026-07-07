@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { SUCURSALES } from '../../lib/sucursales'
 
 /* ════════════════════════════════════════════════════════════════════
    MODAL ETAPA 1 → 2 · Agendar cita + vincular garantías
@@ -15,12 +16,6 @@ import { supabase } from '../../lib/supabase'
    SUCURSALES · editar aquí cuando Elizabeth pase las direcciones reales.
    Solo cambia el campo `direccion` de cada una; nada más se toca.
    ──────────────────────────────────────────────────────────────────── */
-const SUCURSALES = [
-  { id: 'mazatlan',    nombre: 'Mazatlán',    direccion: '(Av. Santa Rosa Col. Federico Velarde no. 15 mazatlán Sinaloa)' },
-  { id: 'guadalajara', nombre: 'Guadalajara', direccion: '(Agustín Yañez 2583 colonia Arcos Vallarta en el edificio JDB )' },
-  { id: 'culiacan',    nombre: 'Culiacán',    direccion: '(Blvd Enrique Sánchez Alonso plaza #255 local 29 desarrollo urbano 3 ríos)' },
-  { id: 'lapaz',       nombre: 'La Paz',      direccion: '(5 de febrero esquina con Josefa Ortiz de Domínguez plaza san Diego local 4)' },
-]
 
 const TIPOS_CITA = [
   { id: 'oficina',      label: '🏢 En oficina',         detalleLabel: 'Detalle adicional (opcional)', placeholder: 'Ej. Sala de juntas, piso 2…' },

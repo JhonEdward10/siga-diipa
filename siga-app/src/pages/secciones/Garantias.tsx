@@ -16,6 +16,7 @@ type Garantia = {
   m2_terreno: number | null
   m2_construccion: number | null
   estatus: string | null
+  imagen_url: string | null
 }
 
 const TIPOS_CASO = [
@@ -39,10 +40,14 @@ export default function Garantias() {
     m2_terreno: '', m2_construccion: '',
   })
 
+  // Estado de la imagen
+  const [imagenUrl, setImagenUrl] = useState<string | null>(null)
+  const [subiendoImg, setSubiendoImg] = useState(false)
+
   async function cargar() {
     const { data: gar, error: errGar } = await supabase
       .from('garantias')
-      .select('id, folio, cartera_id, tipo_caso, num_credito, direccion, estado_mx, municipio, valor_estimado, precio_piso, m2_terreno, m2_construccion, estatus')
+      .select('id, folio, cartera_id, tipo_caso, num_credito, direccion, estado_mx, municipio, valor_estimado, precio_piso, m2_terreno, m2_construccion, estatus, imagen_url')
       .eq('archivada', false).eq('eliminada', false)
       .order('folio', { ascending: true })
 
@@ -85,6 +90,7 @@ export default function Garantias() {
     setEditandoId(null)
     setFolioNuevo(folio)
     setForm({ cartera_id: '', tipo_caso: '', num_credito: '', direccion: '', estado_mx: '', municipio: '', valor_estimado: '', precio_piso: '', m2_terreno: '', m2_construccion: '' })
+    setImagenUrl(null)
     setModalAbierto(true)
   }
 
@@ -103,7 +109,52 @@ export default function Garantias() {
       m2_terreno: g.m2_terreno != null ? String(g.m2_terreno) : '',
       m2_construccion: g.m2_construccion != null ? String(g.m2_construccion) : '',
     })
+    setImagenUrl(g.imagen_url || null)
     setModalAbierto(true)
+  }
+
+  // Subir imagen al bucket público catalogo-garantias
+  async function subirImagen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files && e.target.files[0]
+    if (!file) return
+
+    // Validar que sea imagen
+    if (!file.type.startsWith('image/')) {
+      alert('⚠ El archivo debe ser una imagen (jpg, png, etc.)')
+      e.target.value = ''
+      return
+    }
+    // Validar tamaño (máx 5 MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('⚠ La imagen es muy pesada. Máximo 5 MB.')
+      e.target.value = ''
+      return
+    }
+
+    setSubiendoImg(true)
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    // Nombre único por folio + timestamp (evita que se pisen y refresca la URL)
+    const path = `${folioNuevo}-${Date.now()}.${ext}`
+
+    const { error: errUp } = await supabase.storage
+      .from('catalogo-garantias')
+      .upload(path, file, { upsert: true })
+
+    if (errUp) {
+      setSubiendoImg(false)
+      alert('❌ No se pudo subir la imagen: ' + errUp.message)
+      e.target.value = ''
+      return
+    }
+
+    // Obtener la URL pública
+    const { data: pub } = supabase.storage.from('catalogo-garantias').getPublicUrl(path)
+    setImagenUrl(pub.publicUrl)
+    setSubiendoImg(false)
+  }
+
+  function quitarImagen() {
+    setImagenUrl(null)
   }
 
   async function guardar() {
@@ -114,7 +165,6 @@ export default function Garantias() {
     setGuardando(true)
     const dirNorm = normalizar(form.direccion)
 
-    // Validar duplicado solo al crear (o si cambió la dirección al editar)
     const { data: dup } = await supabase
       .from('garantias').select('id').eq('direccion_norm', dirNorm).eq('eliminada', false)
     const hayDuplicado = (dup || []).some((d) => d.id !== editandoId)
@@ -136,14 +186,15 @@ export default function Garantias() {
       precio_piso: form.precio_piso ? Number(form.precio_piso) : null,
       m2_terreno: form.m2_terreno ? Number(form.m2_terreno) : null,
       m2_construccion: form.m2_construccion ? Number(form.m2_construccion) : null,
+      imagen_url: imagenUrl,
     }
 
     let errGuardar
     if (editandoId === null) {
-      const { error: e } = await supabase.from('garantias').insert({ folio: folioNuevo, estatus: 'activa', ...datos })
+      const { error: e } = await supabase.from('garantias').insert({ folio: folioNuevo, estatus: 'registrada', ...datos })
       errGuardar = e
     } else {
-      const { error: e } = await supabase.from('garantias').update(datos).eq('id', editandoId)
+        const { error: e } = await supabase.from('garantias').update(datos).eq('id', editandoId)
       errGuardar = e
     }
 
@@ -177,19 +228,29 @@ export default function Garantias() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
           {garantias.map((g) => (
-            <div key={g.id} style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div className="flex items-start justify-between" style={{ gap: '8px' }}>
-                <div style={{ fontSize: '10px', color: '#5d6b80', fontFamily: 'monospace', letterSpacing: '0.5px' }}>{g.folio}</div>
-                {g.tipo_caso && <span style={{ fontSize: '9.5px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: '#E6F1FB', color: '#0C447C' }}>{g.tipo_caso}</span>}
+            <div key={g.id} style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '10px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {/* Miniatura de la foto (o placeholder) */}
+              <div style={{ height: '110px', background: '#eef1f5', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {g.imagen_url ? (
+                  <img src={g.imagen_url} alt={g.folio} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: '40px', opacity: 0.4 }}>🏠</span>
+                )}
               </div>
-              <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#042C53' }}>{g.direccion || 'Sin dirección'}</div>
-              <div style={{ background: '#eef1f5', borderRadius: '6px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: '#4a5a6e' }}>
-                <div>📂 {g.cartera_id && mc[g.cartera_id] ? mc[g.cartera_id] : 'Sin cartera'}</div>
-                {g.valor_estimado != null && <div>💰 Valor: ${g.valor_estimado.toLocaleString('es-MX')}</div>}
+              <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="flex items-start justify-between" style={{ gap: '8px' }}>
+                  <div style={{ fontSize: '10px', color: '#5d6b80', fontFamily: 'monospace', letterSpacing: '0.5px' }}>{g.folio}</div>
+                  {g.tipo_caso && <span style={{ fontSize: '9.5px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: '#E6F1FB', color: '#0C447C' }}>{g.tipo_caso}</span>}
+                </div>
+                <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#042C53' }}>{g.direccion || 'Sin dirección'}</div>
+                <div style={{ background: '#eef1f5', borderRadius: '6px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: '#4a5a6e' }}>
+                  <div>📂 {g.cartera_id && mc[g.cartera_id] ? mc[g.cartera_id] : 'Sin cartera'}</div>
+                  {g.valor_estimado != null && <div>💰 Valor: ${g.valor_estimado.toLocaleString('es-MX')}</div>}
+                </div>
+                <button onClick={() => abrirEditar(g)} style={{ background: '#fff', color: '#0C447C', border: '1px solid #c8d0db', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+                  ✏️ Editar
+                </button>
               </div>
-              <button onClick={() => abrirEditar(g)} style={{ background: '#fff', color: '#0C447C', border: '1px solid #c8d0db', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
-                ✏️ Editar
-              </button>
             </div>
           ))}
         </div>
@@ -204,6 +265,34 @@ export default function Garantias() {
               <button onClick={() => setModalAbierto(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '28px', height: '28px', borderRadius: '7px', fontSize: '16px', cursor: 'pointer' }}>✕</button>
             </div>
             <div style={{ padding: '20px' }}>
+              {/* Foto de la propiedad */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={labelStyle}>📸 Foto de la propiedad</label>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '120px', height: '90px', borderRadius: '8px', border: '1px solid #c8d0db', background: '#eef1f5', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                    {imagenUrl ? (
+                      <img src={imagenUrl} alt="Vista previa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: '28px', opacity: 0.4 }}>🏠</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'inline-block', fontSize: '11.5px', fontWeight: 600, padding: '8px 14px', borderRadius: '7px', fontFamily: 'Sora, sans-serif', background: subiendoImg ? '#cbd5e1' : '#0C447C', color: '#fff', cursor: subiendoImg ? 'not-allowed' : 'pointer' }}>
+                      {subiendoImg ? '⏳ Subiendo…' : imagenUrl ? '🔄 Cambiar foto' : '📤 Subir foto'}
+                      <input type="file" accept="image/*" onChange={subirImagen} disabled={subiendoImg} style={{ display: 'none' }} />
+                    </label>
+                    {imagenUrl && (
+                      <button onClick={quitarImagen} type="button" style={{ display: 'block', marginTop: '8px', fontSize: '11px', color: '#b91c1c', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Sora, sans-serif', padding: 0 }}>
+                        🗑️ Quitar foto
+                      </button>
+                    )}
+                    <div style={{ fontSize: '9.5px', color: '#94a3b8', marginTop: '6px', lineHeight: 1.4 }}>
+                      Formato JPG o PNG · máximo 5 MB.<br />Esta foto se mostrará en el catálogo.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div style={{ marginBottom: '10px' }}>
                 <label style={labelStyle}>Cartera *</label>
                 <select value={form.cartera_id} onChange={(e) => setForm({ ...form, cartera_id: e.target.value })} style={inputStyle}>
@@ -234,7 +323,7 @@ export default function Garantias() {
               </div>
               <div className="flex justify-end" style={{ gap: '8px', marginTop: '20px', paddingTop: '16px', borderTop: '0.5px solid #dde3ea' }}>
                 <button onClick={() => setModalAbierto(false)} style={{ padding: '9px 20px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 500, cursor: 'pointer', background: '#eef1f5', color: '#4a5a6e', border: '1px solid #c8d0db' }}>Cancelar</button>
-                <button onClick={guardar} disabled={guardando} style={{ padding: '9px 20px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 500, cursor: guardando ? 'not-allowed' : 'pointer', background: '#0C447C', color: 'white', border: 'none', opacity: guardando ? 0.6 : 1 }}>{guardando ? 'Guardando...' : 'Guardar'}</button>
+                <button onClick={guardar} disabled={guardando || subiendoImg} style={{ padding: '9px 20px', borderRadius: '8px', fontSize: '12px', fontFamily: 'Sora, sans-serif', fontWeight: 500, cursor: guardando ? 'not-allowed' : 'pointer', background: '#0C447C', color: 'white', border: 'none', opacity: guardando ? 0.6 : 1 }}>{guardando ? 'Guardando...' : 'Guardar'}</button>
               </div>
             </div>
           </div>
