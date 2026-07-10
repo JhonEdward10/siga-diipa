@@ -4,6 +4,7 @@ import { SUCURSALES } from '../../lib/sucursales'
 import ModalAvanzarEtapa2 from './ModalAvanzarEtapa2'
 import ModalAvanzarEtapa3 from './ModalAvanzarEtapa3'
 import ModalAvanzarEtapa4 from './ModalAvanzarEtapa4'
+import LineaVida from './LineaVida'
 
 type Prospecto = {
   id: number
@@ -88,6 +89,7 @@ export default function Prospectos() {
   const [modalEt2, setModalEt2] = useState<{ id: number; nombre: string; etapa: number } | null>(null)
   const [modalEt3, setModalEt3] = useState<{ id: number; folio: string; nombre: string } | null>(null)
   const [modalEt4, setModalEt4] = useState<{ id: number; folio: string; nombre: string } | null>(null)
+  const [expediente, setExpediente] = useState<{ id: number; nombre: string; folio: string } | null>(null)
 
   const [modalAbierto, setModalAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -336,6 +338,10 @@ export default function Prospectos() {
                       ←
                     </button>
                   )}
+                  <button onClick={() => setExpediente({ id: p.id, nombre: p.nombre, folio: p.folio || '' })} title="Ver expediente / línea de vida"
+                          style={{ background: '#fff', color: '#5b21b6', border: '1px solid #d8b4fe', padding: '7px 10px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+                    📋
+                  </button>
                   <button onClick={() => abrirEditar(p)}
                           style={{ flex: 1, background: '#fff', color: '#0C447C', border: '1px solid #c8d0db', padding: '7px', borderRadius: '7px', fontSize: '11px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
                     ✏️ Editar
@@ -486,6 +492,26 @@ export default function Prospectos() {
           onCerrar={() => setModalEt4(null)}
           onGuardado={cargar}
         />
+      )}
+
+      {/* Expediente · Línea de Vida */}
+      {expediente && (
+        <div onClick={(e) => { if (e.target === e.currentTarget) setExpediente(null) }}
+             style={{ position: 'fixed', inset: 0, background: 'rgba(4,44,83,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 60, padding: '30px 20px', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '560px', overflow: 'hidden' }}>
+            <div className="flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #5b21b6, #7c3aed)', color: 'white', padding: '16px 20px' }}>
+              <div>
+                <div style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '1px', opacity: .85 }}>📋 EXPEDIENTE · LÍNEA DE VIDA</div>
+                <div style={{ fontSize: '14px', fontWeight: 700, marginTop: '2px' }}>{expediente.nombre}</div>
+                <div style={{ fontSize: '11px', opacity: .85, fontFamily: 'monospace' }}>{expediente.folio}</div>
+              </div>
+              <button onClick={() => setExpediente(null)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '30px', height: '30px', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ padding: '18px 20px', maxHeight: '70vh', overflowY: 'auto', fontFamily: 'Sora, sans-serif' }}>
+              <LineaVida prospectoId={expediente.id} />
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
