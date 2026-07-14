@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import ModalInteres from './ModalInteres'
 
 type GarantiaCatalogo = {
   id: number
@@ -14,6 +15,17 @@ type GarantiaCatalogo = {
   m2_construccion: number | null
   publicado_catalogo: boolean | null
   imagen_url: string | null
+  estatus: string | null
+}
+
+// Badge de estado para el catálogo según garantias.estatus
+function badgeEstatus(estatus: string | null) {
+  switch (estatus) {
+    case 'publicada':   return { label: '🟢 Disponible', bg: '#16A34A' }
+    case 'en_apartado': return { label: '🔒 Apartada',   bg: '#D97706' }
+    case 'vendida':     return { label: '✅ Vendida',     bg: '#475569' }
+    default:            return null
+  }
 }
 
 export default function Catalogo() {
@@ -25,10 +37,13 @@ export default function Catalogo() {
   // Lightbox: imagen abierta en grande (null = cerrado)
   const [zoom, setZoom] = useState<{ url: string; folio: string; direccion: string } | null>(null)
 
+  // Modal de interés (null = cerrado)
+  const [interes, setInteres] = useState<{ id: number; folio: string; direccion: string } | null>(null)
+
   async function cargar() {
     const { data, error: err } = await supabase
       .from('garantias')
-      .select('id, folio, tipo_caso, direccion, estado_mx, municipio, valor_estimado, precio_piso, m2_terreno, m2_construccion, publicado_catalogo, imagen_url')
+      .select('id, folio, tipo_caso, direccion, estado_mx, municipio, valor_estimado, precio_piso, m2_terreno, m2_construccion, publicado_catalogo, imagen_url, estatus')
       .eq('publicado_catalogo', true)
       .eq('eliminada', false)
       .order('folio', { ascending: true })
@@ -82,10 +97,17 @@ export default function Catalogo() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px' }}>
-          {filtrados.map((g) => (
+          {filtrados.map((g) => {
+            const badge = badgeEstatus(g.estatus)
+            return (
             <div key={g.id} style={{ background: '#fff', border: '0.5px solid #c8d0db', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {/* Foto con zoom al pasar el cursor + clic para ampliar */}
-              <div className="cat-foto-wrap" style={{ height: '160px', background: 'linear-gradient(135deg, #E6F1FB, #DAEEFF)' }}>
+              <div className="cat-foto-wrap" style={{ position: 'relative', height: '160px', background: 'linear-gradient(135deg, #E6F1FB, #DAEEFF)' }}>
+                {badge && (
+                  <div style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 2, background: badge.bg, color: '#fff', fontSize: '10px', fontWeight: 700, padding: '4px 10px', borderRadius: '20px', boxShadow: '0 2px 6px rgba(0,0,0,.28)', pointerEvents: 'none' }}>
+                    {badge.label}
+                  </div>
+                )}
                 {g.imagen_url ? (
                   <img
                     src={g.imagen_url}
@@ -119,9 +141,19 @@ export default function Catalogo() {
                     {g.m2_construccion != null && <span>🏠 {g.m2_construccion} m² const.</span>}
                   </div>
                 )}
+
+                {/* Acciones — botón Interés (paso 2a) */}
+                <div className="flex" style={{ gap: '6px', marginTop: '6px', paddingTop: '10px', borderTop: '0.5px solid #eef1f5' }}>
+                  <button
+                    onClick={() => setInteres({ id: g.id, folio: g.folio, direccion: g.direccion || '' })}
+                    style={{ flex: 1, background: '#0C447C', color: 'white', border: 'none', padding: '8px', borderRadius: '7px', fontSize: '11.5px', fontFamily: 'Sora, sans-serif', fontWeight: 600, cursor: 'pointer' }}>
+                    💬 Interés
+                  </button>
+                </div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -145,6 +177,15 @@ export default function Catalogo() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL INTERÉS · vincular prospecto existente a la garantía */}
+      {interes && (
+        <ModalInteres
+          garantia={interes}
+          onCerrar={() => setInteres(null)}
+          onVinculado={cargar}
+        />
       )}
     </div>
   )
